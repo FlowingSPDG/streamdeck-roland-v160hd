@@ -25,15 +25,18 @@ impl TallyCheck {
     }
 
     pub fn light(self, state: TallyState) -> Option<TallyLight> {
-        match (self, state) {
-            (Self::Off, _) | (_, TallyState::Off) => None,
-            (Self::Pgm, TallyState::Program | TallyState::Both) => Some(TallyLight::Program),
-            (Self::Pgm, _) => None,
-            (Self::Prv, TallyState::Preview | TallyState::Both) => Some(TallyLight::Preview),
-            (Self::Prv, _) => None,
-            (Self::Both, TallyState::Program) => Some(TallyLight::Program),
-            (Self::Both, TallyState::Preview) => Some(TallyLight::Preview),
-            (Self::Both, TallyState::Both) => Some(TallyLight::Both),
+        match self {
+            Self::Off => None,
+            Self::Pgm if state.is_program() => Some(TallyLight::Program),
+            Self::Pgm => None,
+            Self::Prv if state.is_preview() => Some(TallyLight::Preview),
+            Self::Prv => None,
+            Self::Both => match state {
+                TallyState::Off => None,
+                TallyState::Program => Some(TallyLight::Program),
+                TallyState::Preview => Some(TallyLight::Preview),
+                TallyState::Both => Some(TallyLight::Both),
+            },
         }
     }
 }
