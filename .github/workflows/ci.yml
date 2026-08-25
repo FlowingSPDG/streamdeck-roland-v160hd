@@ -27,7 +27,7 @@ jobs:
         with:
           repository: FlowingSPDG/roland-rs
           path: roland-rs
-          ref: feature/v160hd-support
+          ref: feature/tokio-async-client
 
       - uses: dtolnay/rust-toolchain@stable
         with:
