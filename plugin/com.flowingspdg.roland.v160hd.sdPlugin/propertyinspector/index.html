@@ -81,6 +81,15 @@
       </select>
     </div>
     <div class="sdpi-item" data-actions="aux">
+      <div class="sdpi-item-label">Operation</div>
+      <select class="sdpi-item-value sdProperty" id="aux_op" oninput="setSettings()">
+        <option value="source">Source</option>
+        <option value="mute">Mute</option>
+        <option value="linked">Linked</option>
+        <option value="link_mode">Link mode</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="aux">
       <div class="sdpi-item-label">Link mode</div>
       <select class="sdpi-item-value sdProperty" id="link_mode" oninput="setSettings()">
         <option value="off">Off</option>

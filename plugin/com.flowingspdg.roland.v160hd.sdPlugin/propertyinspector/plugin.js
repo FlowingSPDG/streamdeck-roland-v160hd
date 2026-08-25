@@ -72,7 +72,8 @@ function applyActionVisibility() {
   const short = (actionInfo.action || "").replace(PREFIX, "");
   document.querySelectorAll("[data-actions]").forEach((el) => {
     const allowed = el.getAttribute("data-actions").split(/\s+/);
-    el.hidden = !(allowed.includes("*") || allowed.includes(short));
+    const show = allowed.includes("*") || allowed.includes(short);
+    el.style.display = show ? "" : "none";
   });
 }
 
