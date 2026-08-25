@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: streamdeck-roland-v160hd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: streamdeck-roland-v160hd
+
+      - uses: actions/checkout@v4
+        with:
+          repository: FlowingSPDG/roland-rs
+          path: roland-rs
+          ref: feature/v160hd-support
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Test
+        run: cargo test --verbose
+
+      - name: Build
+        run: cargo build --release
