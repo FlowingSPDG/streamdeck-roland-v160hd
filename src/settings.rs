@@ -109,6 +109,8 @@ pub struct ActionSettings {
     pub auto_focus: bool,
     #[serde(default)]
     pub exposure_auto: bool,
+    #[serde(default)]
+    pub tally_check: String,
 }
 
 impl ActionSettings {

@@ -28,6 +28,15 @@
       <div class="sdpi-item-label">Source</div>
       <select class="sdpi-item-value sdProperty video-source" id="source" oninput="setSettings()"></select>
     </div>
+    <div class="sdpi-item" data-actions="select.pgm select.pst">
+      <div class="sdpi-item-label">Tally Check</div>
+      <select class="sdpi-item-value sdProperty" id="tally_check" oninput="setSettings()">
+        <option value="off">Off</option>
+        <option value="prv">PRV</option>
+        <option value="pgm">PGM</option>
+        <option value="both">PRV/PGM</option>
+      </select>
+    </div>
 
     <div class="sdpi-item" data-actions="panel.switch">
       <div class="sdpi-item-label">Switch</div>

@@ -1,16 +1,19 @@
 mod actions;
 mod pool;
 mod settings;
+mod tally;
 
 use std::collections::HashMap;
 use std::env;
 
-use actions::{build_job, DeviceJob, Gesture};
+use actions::{build_job, DeviceJob, Gesture, SELECT_PGM, SELECT_PST};
 use futures::{SinkExt, StreamExt};
 use pool::{ConnectionStatus, EndpointKey, Pool, Work};
+use roland_rs::devices::v160hd::TallyState;
 use settings::{ActionSettings, PiMessage, PiOut};
 use streamdeck_rs::registration::RegistrationParams;
-use streamdeck_rs::{Message, MessageOut, StreamDeckSocket};
+use streamdeck_rs::{ImagePayload, Message, MessageOut, StreamDeckSocket, Target};
+use tally::{image_data_uri, TallyBinding, TallyLight};
 use tokio::sync::{mpsc, oneshot};
 
 type SdSocket = StreamDeckSocket<(), ActionSettings, PiMessage, PiOut>;
@@ -27,6 +30,10 @@ enum Outgoing {
         context: String,
         payload: PiOut,
     },
+    SetImage {
+        context: String,
+        image: Option<String>,
+    },
     GetSettings {
         context: String,
     },
@@ -35,9 +42,17 @@ enum Outgoing {
     },
 }
 
+struct KeyWatch {
+    endpoint: Option<EndpointKey>,
+    binding: TallyBinding,
+}
+
 struct Plugin {
     pool: Pool,
     open_pi: HashMap<String, String>,
+    watches: HashMap<String, KeyWatch>,
+    tally_states: HashMap<EndpointKey, [TallyState; 16]>,
+    last_light: HashMap<String, Option<TallyLight>>,
     outgoing: mpsc::UnboundedSender<Outgoing>,
 }
 
@@ -51,10 +66,14 @@ async fn main() {
     let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel();
     let (status_tx, mut status_rx) = mpsc::unbounded_channel();
     let (idle_tx, mut idle_rx) = mpsc::unbounded_channel();
+    let (tally_tx, mut tally_rx) = mpsc::unbounded_channel();
 
     let mut plugin = Plugin {
-        pool: Pool::new(status_tx, idle_tx),
+        pool: Pool::new(status_tx, idle_tx, tally_tx),
         open_pi: HashMap::new(),
+        watches: HashMap::new(),
+        tally_states: HashMap::new(),
+        last_light: HashMap::new(),
         outgoing: outgoing_tx,
     };
 
@@ -81,6 +100,10 @@ async fn main() {
                 let Some((key, generation)) = idle else { break };
                 plugin.pool.apply_idle(key, generation);
             }
+            tally = tally_rx.recv() => {
+                let Some((key, updates)) = tally else { break };
+                plugin.on_tally(key, updates);
+            }
         }
     }
 }
@@ -102,6 +125,18 @@ async fn send_out(socket: &mut SdSocket, out: Outgoing) -> Result<(), String> {
                 })
                 .await
         }
+        Outgoing::SetImage { context, image } => {
+            socket
+                .send(MessageOut::SetImage {
+                    context,
+                    payload: ImagePayload {
+                        image,
+                        target: Target::Both,
+                        state: None,
+                    },
+                })
+                .await
+        }
         Outgoing::GetSettings { context } => socket.send(MessageOut::GetSettings { context }).await,
         Outgoing::Log { message } => {
             socket
@@ -118,19 +153,24 @@ impl Plugin {
     fn handle(&mut self, message: Message<(), ActionSettings, PiMessage>) {
         match message {
             Message::WillAppear {
-                context, payload, ..
+                action,
+                context,
+                payload,
+                ..
             } => {
-                self.pool
-                    .pin(&context, EndpointKey::from_settings(&payload.settings));
+                self.watch_key(action, context, payload.settings);
             }
             Message::DidReceiveSettings {
-                context, payload, ..
+                action,
+                context,
+                payload,
+                ..
             } => {
-                self.pool
-                    .pin(&context, EndpointKey::from_settings(&payload.settings));
+                self.watch_key(action, context.clone(), payload.settings);
                 self.push_status(&context);
             }
             Message::WillDisappear { context, .. } => {
+                self.unwatch_key(&context);
                 self.pool.unpin(&context);
             }
             Message::KeyDown {
@@ -179,8 +219,79 @@ impl Plugin {
         }
     }
 
+    fn on_tally(&mut self, key: EndpointKey, updates: Vec<(u8, TallyState)>) {
+        let slot = self
+            .tally_states
+            .entry(key.clone())
+            .or_insert([TallyState::Off; 16]);
+        for (index, state) in updates {
+            if let Some(entry) = slot.get_mut(index as usize) {
+                *entry = state;
+            }
+        }
+        let contexts = self.pool.contexts_for(&key);
+        for context in contexts {
+            self.refresh_tally_image(&context);
+        }
+    }
+
+    fn watch_key(&mut self, action: String, context: String, settings: ActionSettings) {
+        let endpoint = EndpointKey::from_settings(&settings);
+        self.pool.pin(&context, endpoint.clone());
+        self.watches.insert(
+            context.clone(),
+            KeyWatch {
+                endpoint,
+                binding: TallyBinding::from_action(&action, &settings),
+            },
+        );
+        self.refresh_tally_image(&context);
+    }
+
+    fn unwatch_key(&mut self, context: &str) {
+        self.watches.remove(context);
+        self.last_light.remove(context);
+        let _ = self.outgoing.send(Outgoing::SetImage {
+            context: context.to_string(),
+            image: None,
+        });
+    }
+
+    fn refresh_tally_image(&mut self, context: &str) {
+        let Some(watch) = self.watches.get(context) else {
+            return;
+        };
+        let light = match (
+            watch.binding.watches_tally(),
+            watch.binding.source,
+            watch.endpoint.as_ref(),
+        ) {
+            (true, Some(index), Some(endpoint)) => self
+                .tally_states
+                .get(endpoint)
+                .and_then(|states| states.get(index as usize).copied())
+                .and_then(|state| watch.binding.check.light(state)),
+            _ => None,
+        };
+        if self.last_light.get(context) == Some(&light) {
+            return;
+        }
+        self.last_light.insert(context.to_string(), light);
+        let image = light.map(image_data_uri);
+        let _ = self.outgoing.send(Outgoing::SetImage {
+            context: context.to_string(),
+            image,
+        });
+    }
+
     fn on_status(&mut self, key: EndpointKey, status: ConnectionStatus) {
         self.pool.set_status(key.clone(), status.clone());
+        if matches!(status, ConnectionStatus::Retrying { .. }) {
+            self.tally_states.remove(&key);
+            for context in self.pool.contexts_for(&key) {
+                self.refresh_tally_image(&context);
+            }
+        }
         for context in self.pool.contexts_for(&key) {
             self.push_status_value(&context, status.label());
         }
@@ -233,6 +344,7 @@ impl Plugin {
         let tx = self.pool.sender(&key);
         let outgoing = self.outgoing.clone();
         let show_feedback = gesture == Gesture::Down || matches!(job, DeviceJob::Write(_));
+        let skip_ok = action == SELECT_PGM || action == SELECT_PST;
         tokio::spawn(async move {
             let (reply_tx, reply_rx) = oneshot::channel();
             if tx
@@ -249,7 +361,7 @@ impl Plugin {
             }
             match reply_rx.await {
                 Ok(Ok(())) => {
-                    if show_feedback && gesture_show_ok(gesture) {
+                    if show_feedback && gesture_show_ok(gesture) && !skip_ok {
                         let _ = outgoing.send(Outgoing::ShowOk { context });
                     }
                 }

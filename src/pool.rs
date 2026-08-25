@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use roland_rs::devices::v160hd;
+use roland_rs::devices::v160hd::TallyState;
 use roland_rs::AsyncTelnetClient;
 use tokio::sync::{mpsc, oneshot};
 
@@ -72,12 +73,14 @@ pub struct Pool {
     statuses: HashMap<EndpointKey, ConnectionStatus>,
     status_tx: mpsc::UnboundedSender<(EndpointKey, ConnectionStatus)>,
     idle_tx: mpsc::UnboundedSender<(EndpointKey, u64)>,
+    tally_tx: mpsc::UnboundedSender<(EndpointKey, Vec<(u8, TallyState)>)>,
 }
 
 impl Pool {
     pub fn new(
         status_tx: mpsc::UnboundedSender<(EndpointKey, ConnectionStatus)>,
         idle_tx: mpsc::UnboundedSender<(EndpointKey, u64)>,
+        tally_tx: mpsc::UnboundedSender<(EndpointKey, Vec<(u8, TallyState)>)>,
     ) -> Self {
         Self {
             visible: HashMap::new(),
@@ -85,6 +88,7 @@ impl Pool {
             statuses: HashMap::new(),
             status_tx,
             idle_tx,
+            tally_tx,
         }
     }
 
@@ -135,8 +139,9 @@ impl Pool {
         }
         let (tx, rx) = mpsc::unbounded_channel();
         let status_tx = self.status_tx.clone();
+        let tally_tx = self.tally_tx.clone();
         let task_key = key.clone();
-        tokio::spawn(run_endpoint(task_key, rx, status_tx));
+        tokio::spawn(run_endpoint(task_key, rx, status_tx, tally_tx));
         self.endpoints.insert(
             key,
             Slot {
@@ -203,6 +208,7 @@ async fn run_endpoint(
     key: EndpointKey,
     mut rx: mpsc::UnboundedReceiver<Work>,
     status_tx: mpsc::UnboundedSender<(EndpointKey, ConnectionStatus)>,
+    tally_tx: mpsc::UnboundedSender<(EndpointKey, Vec<(u8, TallyState)>)>,
 ) {
     let mut client: Option<AsyncTelnetClient> = None;
     let mut backoff = Duration::from_secs(1);
@@ -224,6 +230,11 @@ async fn run_endpoint(
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
+                    if let Ok(dump) = connected.send_command(&v160hd::read_tally_dump()).await {
+                        if let Some(updates) = v160hd::tally_updates(&dump) {
+                            let _ = tally_tx.send((key.clone(), updates));
+                        }
+                    }
                     client = Some(connected);
                     backoff = Duration::from_secs(1);
                     let _ = status_tx.send((key.clone(), ConnectionStatus::Connected));
@@ -243,19 +254,36 @@ async fn run_endpoint(
             }
         }
 
-        match rx.recv().await {
-            None | Some(Work::Stop) => return,
-            Some(Work::Exec { job, reply }) => {
-                let Some(c) = client.as_mut() else {
-                    let _ = reply.send(Err("not connected".to_string()));
-                    continue;
-                };
-                let result = execute(c, job).await;
-                if result.is_err() {
-                    client = None;
+        let mut drop_client = false;
+        {
+            let Some(c) = client.as_mut() else {
+                continue;
+            };
+            tokio::select! {
+                incoming = c.recv() => {
+                    match incoming {
+                        Ok(response) => {
+                            if let Some(updates) = v160hd::tally_updates(&response) {
+                                let _ = tally_tx.send((key.clone(), updates));
+                            }
+                        }
+                        Err(_) => drop_client = true,
+                    }
                 }
-                let _ = reply.send(result);
+                work = rx.recv() => match work {
+                    None | Some(Work::Stop) => return,
+                    Some(Work::Exec { job, reply }) => {
+                        let result = execute(c, job).await;
+                        if result.is_err() {
+                            drop_client = true;
+                        }
+                        let _ = reply.send(result);
+                    }
+                }
             }
+        }
+        if drop_client {
+            client = None;
         }
     }
 }
