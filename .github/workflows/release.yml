@@ -79,7 +79,6 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          VERSION="${TAG#v}"
           PLUGIN=com.flowingspdg.roland.v160hd.sdPlugin
           rm -rf dist
           mkdir -p "dist/${PLUGIN}/bin"
@@ -99,28 +98,37 @@ jobs:
           chmod +x "dist/${PLUGIN}/bin/plugin"
           cd dist
           zip -r "../${PLUGIN}.zip" "${PLUGIN}"
-          if [[ "${VERSION}" == *-* ]]; then
-            echo "PRERELEASE=true" >> "$GITHUB_ENV"
+
+      - name: Determine release channel
+        id: channel
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)(\.[0-9]+)?$ ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
-            echo "PRERELEASE=false" >> "$GITHUB_ENV"
+            echo "::error::Unsupported tag '${TAG}'. Use vX.Y.Z for a Release, or vX.Y.Z-alpha.N / vX.Y.Z-beta.N / vX.Y.Z-rc.N for a Pre-release."
+            exit 1
           fi
-          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ steps.channel.outputs.prerelease }}
         run: |
+          set -euo pipefail
+          args=(
+            "${{ github.ref_name }}"
+            "com.flowingspdg.roland.v160hd.sdPlugin.zip"
+            --repo "${{ github.repository }}"
+            --title "${{ github.ref_name }}"
+            --generate-notes
+          )
           if [ "${PRERELEASE}" = "true" ]; then
-            gh release create "${{ github.ref_name }}" \
-              "com.flowingspdg.roland.v160hd.sdPlugin.zip" \
-              --repo "${{ github.repository }}" \
-              --title "${{ github.ref_name }}" \
-              --prerelease \
-              --generate-notes
-          else
-            gh release create "${{ github.ref_name }}" \
-              "com.flowingspdg.roland.v160hd.sdPlugin.zip" \
-              --repo "${{ github.repository }}" \
-              --title "${{ github.ref_name }}" \
-              --generate-notes
+            args+=(--prerelease)
           fi
+          gh release create "${args[@]}"
