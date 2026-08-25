@@ -15,19 +15,8 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: streamdeck-roland-v160hd
     steps:
       - uses: actions/checkout@v7
-        with:
-          path: streamdeck-roland-v160hd
-
-      - uses: actions/checkout@v7
-        with:
-          repository: FlowingSPDG/roland-rs
-          path: roland-rs
-          ref: main
 
       - uses: dtolnay/rust-toolchain@stable
         with:
