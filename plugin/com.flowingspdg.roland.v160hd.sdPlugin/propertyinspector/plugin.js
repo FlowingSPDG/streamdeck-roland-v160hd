@@ -75,6 +75,11 @@ function applyActionVisibility() {
     const show = allowed.includes("*") || allowed.includes(short);
     el.style.display = show ? "" : "none";
   });
+  const tally = document.getElementById("tally_check");
+  if (tally && !tally.value) {
+    if (short === "select.pgm") tally.value = "pgm";
+    if (short === "select.pst") tally.value = "prv";
+  }
 }
 
 function attachPiMessages() {
