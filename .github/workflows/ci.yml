@@ -19,11 +19,11 @@ jobs:
       run:
         working-directory: streamdeck-roland-v160hd
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: streamdeck-roland-v160hd
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: FlowingSPDG/roland-rs
           path: roland-rs
