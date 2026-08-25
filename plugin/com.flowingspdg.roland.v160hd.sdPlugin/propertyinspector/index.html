@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Roland V-160HD</title>
+  <link rel="stylesheet" href="sdpi.css">
+</head>
+<body>
+  <div class="sdpi-wrapper">
+    <div class="sdpi-item" data-actions="*">
+      <div class="sdpi-item-label">Host</div>
+      <input class="sdpi-item-value sdProperty" id="host" placeholder="192.168.0.1" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="*">
+      <div class="sdpi-item-label">Password</div>
+      <input class="sdpi-item-value sdProperty" id="password" value="0000" maxlength="4" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="*">
+      <div class="sdpi-item-label">Status</div>
+      <div class="sdpi-item-value" id="connectionStatus">Not connected</div>
+    </div>
+    <div class="sdpi-item" data-actions="*">
+      <div class="sdpi-item-label"></div>
+      <button class="sdpi-item-value" onclick="testConnection()">Test connection</button>
+    </div>
+
+    <div class="sdpi-item" data-actions="select.pgm select.pst aux pinp dsk camera">
+      <div class="sdpi-item-label">Source</div>
+      <select class="sdpi-item-value sdProperty video-source" id="source" oninput="setSettings()"></select>
+    </div>
+
+    <div class="sdpi-item" data-actions="panel.switch">
+      <div class="sdpi-item-label">Switch</div>
+      <select class="sdpi-item-value sdProperty" id="switch" oninput="setSettings()"></select>
+    </div>
+
+    <div class="sdpi-item" data-actions="input.assign">
+      <div class="sdpi-item-label">Channel</div>
+      <select class="sdpi-item-value sdProperty" id="channel" oninput="setSettings()"></select>
+    </div>
+    <div class="sdpi-item" data-actions="input.assign">
+      <div class="sdpi-item-label">Assign</div>
+      <select class="sdpi-item-value sdProperty" id="input_assign" oninput="setSettings()"></select>
+    </div>
+
+    <div class="sdpi-item" data-actions="output.assign">
+      <div class="sdpi-item-label">Output</div>
+      <select class="sdpi-item-value sdProperty" id="output" oninput="setSettings()">
+        <option value="hdmi1">HDMI 1</option>
+        <option value="hdmi2">HDMI 2</option>
+        <option value="hdmi3">HDMI 3</option>
+        <option value="sdi1">SDI 1</option>
+        <option value="sdi2">SDI 2</option>
+        <option value="sdi3">SDI 3</option>
+        <option value="usb">USB</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="output.assign">
+      <div class="sdpi-item-label">Bus</div>
+      <select class="sdpi-item-value sdProperty" id="output_assign" oninput="setSettings()">
+        <option value="program">Program</option>
+        <option value="sub_program">Sub Program</option>
+        <option value="preview">PRV</option>
+        <option value="aux1">AUX 1</option>
+        <option value="aux2">AUX 2</option>
+        <option value="aux3">AUX 3</option>
+        <option value="dsk1">DSK1 Source</option>
+        <option value="dsk2">DSK2 Source</option>
+        <option value="multiview">Multi-View</option>
+        <option value="input16">16-Input View</option>
+        <option value="still16">16-Still View</option>
+      </select>
+    </div>
+
+    <div class="sdpi-item" data-actions="aux">
+      <div class="sdpi-item-label">AUX</div>
+      <select class="sdpi-item-value sdProperty" id="aux_bus" oninput="setSettings()">
+        <option value="1">AUX 1</option>
+        <option value="2">AUX 2</option>
+        <option value="3">AUX 3</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="aux">
+      <div class="sdpi-item-label">Operation</div>
+      <select class="sdpi-item-value sdProperty" id="aux_op" oninput="setSettings()">
+        <option value="source">Source</option>
+        <option value="mute">Mute</option>
+        <option value="linked">Linked</option>
+        <option value="link_mode">Link mode</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="aux">
+      <div class="sdpi-item-label">Link mode</div>
+      <select class="sdpi-item-value sdProperty" id="link_mode" oninput="setSettings()">
+        <option value="off">Off</option>
+        <option value="auto">Auto</option>
+        <option value="manual">Manual</option>
+      </select>
+    </div>
+
+    <div class="sdpi-item" data-actions="layer.enable">
+      <div class="sdpi-item-label">Layer</div>
+      <select class="sdpi-item-value sdProperty" id="mix_layer" oninput="setSettings()">
+        <option value="pgm_pinp1">PGM PinP 1</option>
+        <option value="pgm_pinp2">PGM PinP 2</option>
+        <option value="pgm_pinp3">PGM PinP 3</option>
+        <option value="pgm_pinp4">PGM PinP 4</option>
+        <option value="pgm_dsk1">PGM DSK 1</option>
+        <option value="pgm_dsk2">PGM DSK 2</option>
+        <option value="sub_pinp1">SUB PinP 1</option>
+        <option value="sub_pinp2">SUB PinP 2</option>
+        <option value="sub_pinp3">SUB PinP 3</option>
+        <option value="sub_pinp4">SUB PinP 4</option>
+        <option value="sub_dsk1">SUB DSK 1</option>
+        <option value="sub_dsk2">SUB DSK 2</option>
+      </select>
+    </div>
+
+    <div class="sdpi-item" data-actions="pinp">
+      <div class="sdpi-item-label">PinP</div>
+      <select class="sdpi-item-value sdProperty" id="pinp_key" oninput="setSettings()">
+        <option value="1">Key 1</option>
+        <option value="2">Key 2</option>
+        <option value="3">Key 3</option>
+        <option value="4">Key 4</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="pinp">
+      <div class="sdpi-item-label">Operation</div>
+      <select class="sdpi-item-value sdProperty" id="pinp_op" oninput="setSettings()">
+        <option value="bus">On PGM/PRV</option>
+        <option value="source">Source</option>
+        <option value="type">Type</option>
+        <option value="fade">Fade</option>
+        <option value="position_h">Position H (x10)</option>
+        <option value="position_v">Position V (x10)</option>
+        <option value="size">Size (x10)</option>
+        <option value="crop_h">Crop H (x10)</option>
+        <option value="crop_v">Crop V (x10)</option>
+        <option value="shape">Shape</option>
+        <option value="border_color">Border color</option>
+        <option value="border_width">Border width</option>
+        <option value="view_h">View H (x10)</option>
+        <option value="view_v">View V (x10)</option>
+        <option value="view_zoom">View zoom</option>
+        <option value="key_level">Key level</option>
+        <option value="key_gain">Key gain</option>
+        <option value="mix_level">Mix level</option>
+        <option value="chroma">Chroma color</option>
+        <option value="hue_width">Hue width</option>
+        <option value="hue_fine">Hue fine</option>
+        <option value="sat_width">Sat width</option>
+        <option value="sat_fine">Sat fine</option>
+        <option value="border_r">Border R</option>
+        <option value="border_g">Border G</option>
+        <option value="border_b">Border B</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="pinp dsk">
+      <div class="sdpi-item-label">Bus</div>
+      <select class="sdpi-item-value sdProperty" id="bus" oninput="setSettings()">
+        <option value="pgm">Program</option>
+        <option value="pvw">PRV</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="pinp">
+      <div class="sdpi-item-label">Type</div>
+      <select class="sdpi-item-value sdProperty" id="pinp_type" oninput="setSettings()">
+        <option value="pinp">PinP</option>
+        <option value="luma_white">Luminance White</option>
+        <option value="luma_black">Luminance Black</option>
+        <option value="chroma">Chroma</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="pinp">
+      <div class="sdpi-item-label">Shape</div>
+      <select class="sdpi-item-value sdProperty" id="shape" oninput="setSettings()">
+        <option value="rect">Rectangle</option>
+        <option value="circle">Circle</option>
+        <option value="diamond">Diamond</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="pinp">
+      <div class="sdpi-item-label">Border</div>
+      <select class="sdpi-item-value sdProperty" id="border_color" oninput="setSettings()">
+        <option value="white">White</option>
+        <option value="yellow">Yellow</option>
+        <option value="cyan">Cyan</option>
+        <option value="green">Green</option>
+        <option value="magenta">Magenta</option>
+        <option value="red">Red</option>
+        <option value="blue">Blue</option>
+        <option value="black">Black</option>
+        <option value="custom">Custom</option>
+        <option value="soft">Soft Edge</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="pinp">
+      <div class="sdpi-item-label">Chroma</div>
+      <select class="sdpi-item-value sdProperty" id="chroma_color" oninput="setSettings()">
+        <option value="green">Green</option>
+        <option value="blue">Blue</option>
+      </select>
+    </div>
+
+    <div class="sdpi-item" data-actions="dsk">
+      <div class="sdpi-item-label">DSK</div>
+      <select class="sdpi-item-value sdProperty" id="dsk_ch" oninput="setSettings()">
+        <option value="1">DSK 1</option>
+        <option value="2">DSK 2</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="dsk">
+      <div class="sdpi-item-label">Operation</div>
+      <select class="sdpi-item-value sdProperty" id="dsk_op" oninput="setSettings()">
+        <option value="bus">On PGM/PRV</option>
+        <option value="key_source">Key source</option>
+        <option value="fill_source">Fill source</option>
+        <option value="type">Type</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="dsk">
+      <div class="sdpi-item-label">DSK type</div>
+      <select class="sdpi-item-value sdProperty" id="dsk_type" oninput="setSettings()">
+        <option value="luma_white">Luminance White</option>
+        <option value="luma_black">Luminance Black</option>
+        <option value="chroma">Chroma</option>
+      </select>
+    </div>
+
+    <div class="sdpi-item" data-actions="transition">
+      <div class="sdpi-item-label">Operation</div>
+      <select class="sdpi-item-value sdProperty" id="trans_op" oninput="setSettings()">
+        <option value="time">Time</option>
+        <option value="type">Mix / Wipe</option>
+        <option value="mix_type">Mix type</option>
+        <option value="wipe_type">Wipe type</option>
+        <option value="wipe_direction">Wipe direction</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="transition">
+      <div class="sdpi-item-label">Target</div>
+      <select class="sdpi-item-value sdProperty" id="trans_time" oninput="setSettings()">
+        <option value="mix_wipe">Mix/Wipe</option>
+        <option value="pinp1">PinP 1</option>
+        <option value="pinp2">PinP 2</option>
+        <option value="pinp3">PinP 3</option>
+        <option value="pinp4">PinP 4</option>
+        <option value="dsk1">DSK 1</option>
+        <option value="dsk2">DSK 2</option>
+        <option value="output_fade">Output fade</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="transition">
+      <div class="sdpi-item-label">Tenths</div>
+      <input class="sdpi-item-value sdProperty" id="tenths" type="number" min="0" max="40" value="10" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="transition">
+      <div class="sdpi-item-label">Mix/Wipe</div>
+      <select class="sdpi-item-value sdProperty" id="trans_type" oninput="setSettings()">
+        <option value="mix">Mix</option>
+        <option value="wipe">Wipe</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="transition">
+      <div class="sdpi-item-label">Mix type</div>
+      <select class="sdpi-item-value sdProperty" id="mix_type" oninput="setSettings()">
+        <option value="mix">MIX</option>
+        <option value="fam">FAM</option>
+        <option value="nam">NAM</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="transition">
+      <div class="sdpi-item-label">Wipe</div>
+      <select class="sdpi-item-value sdProperty" id="wipe_type" oninput="setSettings()">
+        <option value="h">Horizontal</option>
+        <option value="v">Vertical</option>
+        <option value="ul">Upper Left</option>
+        <option value="ur">Upper Right</option>
+        <option value="ll">Lower Left</option>
+        <option value="lr">Lower Right</option>
+        <option value="hc">H Center</option>
+        <option value="vc">V Center</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="transition">
+      <div class="sdpi-item-label">Direction</div>
+      <select class="sdpi-item-value sdProperty" id="wipe_direction" oninput="setSettings()">
+        <option value="normal">Normal</option>
+        <option value="reverse">Reverse</option>
+        <option value="round">Round trip</option>
+      </select>
+    </div>
+
+    <div class="sdpi-item" data-actions="memory">
+      <div class="sdpi-item-label">Operation</div>
+      <select class="sdpi-item-value sdProperty" id="mem_op" oninput="setSettings()">
+        <option value="load">Load</option>
+        <option value="save">Save</option>
+        <option value="init">Initialize</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="memory">
+      <div class="sdpi-item-label">Slot</div>
+      <select class="sdpi-item-value sdProperty" id="slot" oninput="setSettings()"></select>
+    </div>
+
+    <div class="sdpi-item" data-actions="freeze">
+      <div class="sdpi-item-label">Operation</div>
+      <select class="sdpi-item-value sdProperty" id="freeze_op" oninput="setSettings()">
+        <option value="on">On/Off</option>
+        <option value="type">Type</option>
+        <option value="select">Select input</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="freeze">
+      <div class="sdpi-item-label">Type</div>
+      <select class="sdpi-item-value sdProperty" id="freeze_type" oninput="setSettings()">
+        <option value="all">All</option>
+        <option value="select">Select</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="freeze">
+      <div class="sdpi-item-label">Input</div>
+      <select class="sdpi-item-value sdProperty" id="freeze_input" oninput="setSettings()"></select>
+    </div>
+
+    <div class="sdpi-item" data-actions="macro">
+      <div class="sdpi-item-label">Macro</div>
+      <input class="sdpi-item-value sdProperty" id="macro_n" type="number" min="1" max="100" value="1" oninput="setSettings()">
+    </div>
+
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Camera</div>
+      <select class="sdpi-item-value sdProperty" id="camera_id" oninput="setSettings()"></select>
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Operation</div>
+      <select class="sdpi-item-value sdProperty" id="cam_op" oninput="setSettings()">
+        <option value="preset">Preset</option>
+        <option value="pan">Pan (hold)</option>
+        <option value="tilt">Tilt (hold)</option>
+        <option value="zoom">Zoom (hold)</option>
+        <option value="focus">Focus (hold)</option>
+        <option value="pt_speed">Pan/Tilt speed</option>
+        <option value="auto_focus">Auto focus</option>
+        <option value="exposure">Exposure auto</option>
+        <option value="tally">Tally follow</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Preset</div>
+      <select class="sdpi-item-value sdProperty" id="preset" oninput="setSettings()">
+        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+        <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+        <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        <option value="10">10</option><option value="none">None</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Pan</div>
+      <select class="sdpi-item-value sdProperty" id="pan" oninput="setSettings()">
+        <option value="left">Left</option>
+        <option value="right">Right</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Tilt</div>
+      <select class="sdpi-item-value sdProperty" id="tilt" oninput="setSettings()">
+        <option value="up">Up</option>
+        <option value="down">Down</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Zoom</div>
+      <select class="sdpi-item-value sdProperty" id="zoom" oninput="setSettings()">
+        <option value="in_slow">In slow</option>
+        <option value="in_fast">In fast</option>
+        <option value="out_slow">Out slow</option>
+        <option value="out_fast">Out fast</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Focus</div>
+      <select class="sdpi-item-value sdProperty" id="focus" oninput="setSettings()">
+        <option value="far">Far</option>
+        <option value="near">Near</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Speed</div>
+      <input class="sdpi-item-value sdProperty" id="pt_speed" type="number" min="0" max="24" value="12" oninput="setSettings()">
+    </div>
+
+    <div class="sdpi-item" data-actions="pinp aux transition">
+      <div class="sdpi-item-label">Value</div>
+      <input class="sdpi-item-value sdProperty" id="value" placeholder="numeric / link mode" oninput="setSettings()">
+    </div>
+
+    <div class="sdpi-item" data-actions="layer.enable pinp dsk freeze">
+      <div class="sdpi-item-label">Enable</div>
+      <input class="sdpi-item-value sdProperty sdCheckbox" id="enable" type="checkbox" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="aux">
+      <div class="sdpi-item-label">Muted</div>
+      <input class="sdpi-item-value sdProperty sdCheckbox" id="muted" type="checkbox" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="aux">
+      <div class="sdpi-item-label">Linked</div>
+      <input class="sdpi-item-value sdProperty sdCheckbox" id="linked" type="checkbox" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Auto focus</div>
+      <input class="sdpi-item-value sdProperty sdCheckbox" id="auto_focus" type="checkbox" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="camera">
+      <div class="sdpi-item-label">Auto exposure</div>
+      <input class="sdpi-item-value sdProperty sdCheckbox" id="exposure_auto" type="checkbox" oninput="setSettings()">
+    </div>
+  </div>
+  <script src="sdtools.common.js"></script>
+  <script src="plugin.js"></script>
+</body>
+</html>
