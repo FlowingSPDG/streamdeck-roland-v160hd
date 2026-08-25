@@ -5,10 +5,10 @@
   "CodePathWin": "bin/plugin.exe",
   "CodePathMac": "bin/plugin",
   "Description": "Roland V-160HD LAN control for Stream Deck.",
-  "Name": "Roland V-160HD",
+  "Name": "Roland V-160HD [FlowingSPDG]",
   "Icon": "images/plugin",
-  "Category": "Roland V-160HD",
-  "CategoryIcon": "images/category",
+  "Category": "Roland V-160HD [FlowingSPDG]",
+  "CategoryIcon": "images/plugin",
   "UUID": "com.flowingspdg.roland.v160hd",
   "Version": "0.0.0",
   "OS": [
@@ -18,129 +18,129 @@
   "Software": { "MinimumVersion": "6.0" },
   "Actions": [
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Select PGM",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "V-160HD の PGM ソースを切り替える",
       "UUID": "com.flowingspdg.roland.v160hd.select.pgm",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
-      "Name": "Select PST",
-      "States": [{ "Image": "images/action" }],
-      "Tooltip": "V-160HD の PST/PVW ソースを切り替える",
+      "Icon": "images/plugin",
+      "Name": "Select PRV",
+      "States": [{ "Image": "images/plugin" }],
+      "Tooltip": "V-160HD の PRV ソースを切り替える",
       "UUID": "com.flowingspdg.roland.v160hd.select.pst",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "CUT",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "CUT スイッチ",
       "UUID": "com.flowingspdg.roland.v160hd.cut",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "AUTO",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "AUTO トランジション",
       "UUID": "com.flowingspdg.roland.v160hd.auto",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Panel Switch",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "パネルスイッチを押す / 離す",
       "UUID": "com.flowingspdg.roland.v160hd.panel.switch",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Input Assign",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "入力チャンネルのソース割り当て",
       "UUID": "com.flowingspdg.roland.v160hd.input.assign",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Output Assign",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "出力コネクタのバス割り当て",
       "UUID": "com.flowingspdg.roland.v160hd.output.assign",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "AUX",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "AUX ソース / ミュート / リンク",
       "UUID": "com.flowingspdg.roland.v160hd.aux",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Layer Enable",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "PGM / SUB PGM の PinP・DSK レイヤー",
       "UUID": "com.flowingspdg.roland.v160hd.layer.enable",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "PinP",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "PinP & Key パラメータ",
       "UUID": "com.flowingspdg.roland.v160hd.pinp",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "DSK",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "DSK パラメータ",
       "UUID": "com.flowingspdg.roland.v160hd.dsk",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Transition",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "トランジション種別と時間",
       "UUID": "com.flowingspdg.roland.v160hd.transition",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Memory",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "プリセットメモリの読み込み / 保存 / 初期化",
       "UUID": "com.flowingspdg.roland.v160hd.memory",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Freeze",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "フリーズ",
       "UUID": "com.flowingspdg.roland.v160hd.freeze",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Macro",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "マクロ実行",
       "UUID": "com.flowingspdg.roland.v160hd.macro",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
-      "Icon": "images/action",
+      "Icon": "images/plugin",
       "Name": "Camera",
-      "States": [{ "Image": "images/action" }],
+      "States": [{ "Image": "images/plugin" }],
       "Tooltip": "カメラ PTZ。パン / チルト / ズーム / フォーカスは押している間動作",
       "UUID": "com.flowingspdg.roland.v160hd.camera",
       "PropertyInspectorPath": "propertyinspector/index.html"
