@@ -19,19 +19,8 @@ jobs:
           - os: macos-latest
             artifact: macos
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: streamdeck-roland-v160hd
     steps:
       - uses: actions/checkout@v7
-        with:
-          path: streamdeck-roland-v160hd
-
-      - uses: actions/checkout@v7
-        with:
-          repository: FlowingSPDG/roland-rs
-          path: roland-rs
-          ref: main
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -60,15 +49,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: streamdeck-roland-v160hd/plugin/com.flowingspdg.roland.v160hd.sdPlugin
+          path: plugin/com.flowingspdg.roland.v160hd.sdPlugin
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          path: streamdeck-roland-v160hd
 
       - uses: actions/download-artifact@v4
         with:
@@ -82,7 +69,7 @@ jobs:
           PLUGIN=com.flowingspdg.roland.v160hd.sdPlugin
           rm -rf dist
           mkdir -p "dist/${PLUGIN}/bin"
-          cp -R streamdeck-roland-v160hd/plugin/${PLUGIN}/. "dist/${PLUGIN}/"
+          cp -R plugin/${PLUGIN}/. "dist/${PLUGIN}/"
           WIN_EXE=$(find artifacts/windows -name plugin.exe | head -n 1)
           MAC_BIN=$(find artifacts/macos -path '*/bin/plugin' | head -n 1)
           cp "$WIN_EXE" "dist/${PLUGIN}/bin/plugin.exe"

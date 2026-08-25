@@ -21,7 +21,7 @@
       "Icon": "images/plugin",
       "Name": "Select PGM",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "V-160HD の PGM ソースを切り替える",
+      "Tooltip": "V-160HDのPGMソースを切り替える",
       "UUID": "com.flowingspdg.roland.v160hd.select.pgm",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
@@ -29,7 +29,7 @@
       "Icon": "images/plugin",
       "Name": "Select PRV",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "V-160HD の PRV ソースを切り替える",
+      "Tooltip": "V-160HDのPRVソースを切り替える",
       "UUID": "com.flowingspdg.roland.v160hd.select.pst",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
@@ -37,7 +37,7 @@
       "Icon": "images/plugin",
       "Name": "CUT",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "CUT スイッチ",
+      "Tooltip": "CUTスイッチ",
       "UUID": "com.flowingspdg.roland.v160hd.cut",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
@@ -45,7 +45,7 @@
       "Icon": "images/plugin",
       "Name": "AUTO",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "AUTO トランジション",
+      "Tooltip": "AUTOトランジション",
       "UUID": "com.flowingspdg.roland.v160hd.auto",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
@@ -77,7 +77,7 @@
       "Icon": "images/plugin",
       "Name": "AUX",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "AUX ソース / ミュート / リンク",
+      "Tooltip": "AUXソース / ミュート / リンク",
       "UUID": "com.flowingspdg.roland.v160hd.aux",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
@@ -85,7 +85,7 @@
       "Icon": "images/plugin",
       "Name": "Layer Enable",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "PGM / SUB PGM の PinP・DSK レイヤー",
+      "Tooltip": "PGM / SUB PGMのPinP・DSKレイヤー",
       "UUID": "com.flowingspdg.roland.v160hd.layer.enable",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
@@ -93,7 +93,7 @@
       "Icon": "images/plugin",
       "Name": "PinP",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "PinP & Key パラメータ",
+      "Tooltip": "PinP & Keyパラメータ",
       "UUID": "com.flowingspdg.roland.v160hd.pinp",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
@@ -101,7 +101,7 @@
       "Icon": "images/plugin",
       "Name": "DSK",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "DSK パラメータ",
+      "Tooltip": "DSKパラメータ",
       "UUID": "com.flowingspdg.roland.v160hd.dsk",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
@@ -141,7 +141,7 @@
       "Icon": "images/plugin",
       "Name": "Camera",
       "States": [{ "Image": "images/plugin" }],
-      "Tooltip": "カメラ PTZ。パン / チルト / ズーム / フォーカスは押している間動作",
+      "Tooltip": "カメラPTZ。パン / チルト / ズーム / フォーカスは押している間動作",
       "UUID": "com.flowingspdg.roland.v160hd.camera",
       "PropertyInspectorPath": "propertyinspector/index.html"
     }
