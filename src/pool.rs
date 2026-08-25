@@ -218,6 +218,8 @@ async fn run_endpoint(
             let _ = status_tx.send((key.clone(), ConnectionStatus::Connecting));
             match AsyncTelnetClient::connect_v160hd(&key.host, &key.password).await {
                 Ok(mut connected) => {
+                    // Subscribe so the switcher pushes tally DTH on its own.
+                    // recv() in the idle loop picks those up; no polling.
                     if let Err(e) = connected.send_command(&v160hd::subscribe_tally(true)).await {
                         let status = ConnectionStatus::Retrying {
                             backoff_secs: backoff.as_secs().max(1),
@@ -229,11 +231,6 @@ async fn run_endpoint(
                         }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
-                    }
-                    if let Ok(dump) = connected.send_command(&v160hd::read_tally_dump()).await {
-                        if let Some(updates) = v160hd::tally_updates(&dump) {
-                            let _ = tally_tx.send((key.clone(), updates));
-                        }
                     }
                     client = Some(connected);
                     backoff = Duration::from_secs(1);
