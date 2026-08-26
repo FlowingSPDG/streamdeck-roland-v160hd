@@ -61,12 +61,22 @@ jobs:
         with:
           path: artifacts
 
-      - name: Assemble plugin zip
+      - name: Pack .streamDeckPlugin
         env:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           PLUGIN=com.flowingspdg.roland.v160hd.sdPlugin
+          VERSION="${TAG#v}"
+          if [[ "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            PLUGIN_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.0"
+          elif [[ "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-(alpha|beta|rc)(\.([0-9]+))?$ ]]; then
+            PLUGIN_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.${BASH_REMATCH[6]:-0}"
+          else
+            echo "::error::Unsupported tag '${TAG}'."
+            exit 1
+          fi
+          export PLUGIN_VERSION
           rm -rf dist
           mkdir -p "dist/${PLUGIN}/bin"
           cp -R plugin/${PLUGIN}/. "dist/${PLUGIN}/"
@@ -74,17 +84,16 @@ jobs:
           MAC_BIN=$(find artifacts/macos -path '*/bin/plugin' | head -n 1)
           cp "$WIN_EXE" "dist/${PLUGIN}/bin/plugin.exe"
           cp "$MAC_BIN" "dist/${PLUGIN}/bin/plugin"
-          python3 - <<'PY'
-          import json, os, pathlib
-          version = os.environ["TAG"].lstrip("v")
-          path = pathlib.Path("dist/com.flowingspdg.roland.v160hd.sdPlugin/manifest.json")
-          data = json.loads(path.read_text(encoding="utf-8"))
-          data["Version"] = version
-          path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-          PY
           chmod +x "dist/${PLUGIN}/bin/plugin"
-          cd dist
-          zip -r "../${PLUGIN}.zip" "${PLUGIN}"
+          MANIFEST="dist/${PLUGIN}/manifest.json"
+          jq --arg v "${PLUGIN_VERSION}" '.Version = $v' "${MANIFEST}" > "${MANIFEST}.tmp"
+          mv "${MANIFEST}.tmp" "${MANIFEST}"
+          npm install -g @elgato/cli@1.9.0
+          streamdeck pack "dist/${PLUGIN}" \
+            --output . \
+            --force \
+            --no-update-check
+          test -f com.flowingspdg.roland.v160hd.streamDeckPlugin
 
       - name: Determine release channel
         id: channel
@@ -110,7 +119,7 @@ jobs:
           set -euo pipefail
           args=(
             "${{ github.ref_name }}"
-            "com.flowingspdg.roland.v160hd.sdPlugin.zip"
+            "com.flowingspdg.roland.v160hd.streamDeckPlugin"
             --repo "${{ github.repository }}"
             --title "${{ github.ref_name }}"
             --generate-notes

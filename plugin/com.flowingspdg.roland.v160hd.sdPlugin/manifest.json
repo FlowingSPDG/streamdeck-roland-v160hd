@@ -10,12 +10,12 @@
   "Category": "Roland V-160HD [FlowingSPDG]",
   "CategoryIcon": "images/plugin",
   "UUID": "com.flowingspdg.roland.v160hd",
-  "Version": "0.0.0",
+  "Version": "0.0.0.0",
   "OS": [
     { "Platform": "windows", "MinimumVersion": "10" },
     { "Platform": "mac", "MinimumVersion": "10.15" }
   ],
-  "Software": { "MinimumVersion": "6.0" },
+  "Software": { "MinimumVersion": "6.4" },
   "Actions": [
     {
       "Icon": "images/plugin",
