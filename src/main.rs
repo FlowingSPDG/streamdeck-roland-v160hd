@@ -10,7 +10,7 @@ use actions::{build_job, DeviceJob, Gesture, SELECT_PGM, SELECT_PST};
 use futures::{SinkExt, StreamExt};
 use pool::{ConnectionStatus, EndpointKey, Pool, Work};
 use roland_rs::devices::v160hd::TallyState;
-use settings::{ActionSettings, PiMessage, PiOut};
+use settings::{ActionSettings, EndpointInfo, PiMessage, PiOut};
 use streamdeck_rs::registration::RegistrationParams;
 use streamdeck_rs::{ImagePayload, Message, MessageOut, StreamDeckSocket, Target};
 use tally::{image_data_uri, TallyBinding, TallyLight};
@@ -215,8 +215,31 @@ impl Plugin {
             return;
         }
         if payload.command.as_deref() == Some("test_connection") {
-            self.push_status(&context);
+            self.start_ver_test(action, context, payload);
         }
+    }
+
+    fn start_ver_test(&self, action: String, context: String, payload: PiMessage) {
+        let host = payload.host.unwrap_or_default();
+        let host = host.trim().to_string();
+        let password = payload.password.unwrap_or_else(|| "0000".to_string());
+        if host.is_empty() {
+            self.push_status_value(&context, "Enter a host".to_string());
+            return;
+        }
+        self.push_status_value(&context, "Testing…".to_string());
+        let outgoing = self.outgoing.clone();
+        tokio::spawn(async move {
+            let status = match ver_probe(&host, &password).await {
+                Ok((product, version)) => format!("Connected ({product} {version})"),
+                Err(e) => format!("Failed ({e})"),
+            };
+            let _ = outgoing.send(Outgoing::ToPi {
+                action,
+                context,
+                payload: PiOut::state(status, Vec::new()),
+            });
+        });
     }
 
     fn on_tally(&mut self, key: EndpointKey, updates: Vec<(u8, TallyState)>) {
@@ -310,10 +333,20 @@ impl Plugin {
         let Some(action) = self.open_pi.get(context) else {
             return;
         };
+        let endpoints = self
+            .pool
+            .endpoint_list()
+            .into_iter()
+            .map(|(key, status)| EndpointInfo {
+                host: key.host,
+                password: key.password,
+                status,
+            })
+            .collect();
         let _ = self.outgoing.send(Outgoing::ToPi {
             action: action.clone(),
             context: context.to_string(),
-            payload: PiOut::status(label),
+            payload: PiOut::state(label, endpoints),
         });
     }
 
@@ -383,4 +416,11 @@ impl Plugin {
 
 fn gesture_show_ok(gesture: Gesture) -> bool {
     gesture == Gesture::Down
+}
+
+async fn ver_probe(host: &str, password: &str) -> Result<(String, String), String> {
+    let mut client = roland_rs::AsyncTelnetClient::connect_v160hd(host, password)
+        .await
+        .map_err(|e| e.to_string())?;
+    client.get_version().await.map_err(|e| e.to_string())
 }

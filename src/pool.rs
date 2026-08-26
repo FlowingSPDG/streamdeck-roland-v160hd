@@ -101,6 +101,26 @@ impl Pool {
         self.statuses.insert(key, status);
     }
 
+    pub fn endpoint_list(&self) -> Vec<(EndpointKey, String)> {
+        let mut keys: Vec<EndpointKey> = self.endpoints.keys().cloned().collect();
+        for key in self.visible.values() {
+            if !keys.iter().any(|existing| existing == key) {
+                keys.push(key.clone());
+            }
+        }
+        keys.sort_by(|a, b| a.host.cmp(&b.host).then(a.password.cmp(&b.password)));
+        keys.into_iter()
+            .map(|key| {
+                let status = self
+                    .statuses
+                    .get(&key)
+                    .map(ConnectionStatus::label)
+                    .unwrap_or_else(|| "Not connected".to_string());
+                (key, status)
+            })
+            .collect()
+    }
+
     pub fn contexts_for(&self, key: &EndpointKey) -> Vec<String> {
         self.visible
             .iter()

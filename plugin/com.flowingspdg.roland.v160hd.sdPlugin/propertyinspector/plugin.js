@@ -80,6 +80,75 @@ function applyActionVisibility() {
     if (short === "select.pgm") tally.value = "pgm";
     if (short === "select.pst") tally.value = "prv";
   }
+  applyConnectionUi();
+}
+
+function endpointValue(endpoint) {
+  return endpoint.host + "\t" + (endpoint.password || "0000");
+}
+
+function renderEndpoints(endpoints) {
+  const pick = document.getElementById("connection_pick");
+  if (!pick) return;
+  const host = document.getElementById("host");
+  const password = document.getElementById("password");
+  const mode = document.getElementById("connection_mode");
+  pick.innerHTML = "";
+  addOption(pick, "manual", "Enter IP");
+  const hostCounts = {};
+  (endpoints || []).forEach((endpoint) => {
+    hostCounts[endpoint.host] = (hostCounts[endpoint.host] || 0) + 1;
+  });
+  (endpoints || []).forEach((endpoint) => {
+    const label = hostCounts[endpoint.host] > 1
+      ? `${endpoint.host} (${endpoint.password}) · ${endpoint.status}`
+      : `${endpoint.host} · ${endpoint.status}`;
+    addOption(pick, endpointValue(endpoint), label);
+  });
+  const savedValue = host && host.value.trim()
+    ? `${host.value.trim()}\t${(password && password.value) || "0000"}`
+    : "";
+  const hasMatch = savedValue && [...pick.options].some((opt) => opt.value === savedValue);
+  const others = (endpoints || []).filter((endpoint) => endpointValue(endpoint) !== savedValue);
+  if (mode && mode.value === "saved" && hasMatch) {
+    pick.value = savedValue;
+  } else if (mode && !mode.value && hasMatch && others.length > 0) {
+    pick.value = savedValue;
+    mode.value = "saved";
+  } else {
+    pick.value = "manual";
+    if (mode && !mode.value) mode.value = "manual";
+  }
+  applyConnectionUi();
+}
+
+function applyConnectionUi() {
+  const pick = document.getElementById("connection_pick");
+  const manual = !pick || pick.value === "manual";
+  const short = (actionInfo.action || "").replace(PREFIX, "");
+  document.querySelectorAll("[data-manual-only]").forEach((el) => {
+    const allowed = (el.getAttribute("data-actions") || "*").split(/\s+/);
+    const actionShow = allowed.includes("*") || allowed.includes(short);
+    el.style.display = actionShow && manual ? "" : "none";
+  });
+}
+
+function onConnectionPick() {
+  const pick = document.getElementById("connection_pick");
+  const mode = document.getElementById("connection_mode");
+  const host = document.getElementById("host");
+  const password = document.getElementById("password");
+  if (!pick || !mode) return;
+  if (pick.value === "manual") {
+    mode.value = "manual";
+  } else {
+    const parts = pick.value.split("\t");
+    mode.value = "saved";
+    if (host) host.value = parts[0] || "";
+    if (password) password.value = parts[1] || "0000";
+  }
+  applyConnectionUi();
+  setSettings();
 }
 
 function attachPiMessages() {
@@ -87,17 +156,31 @@ function attachPiMessages() {
   const original = websocket.onmessage;
   websocket.onmessage = function (evt) {
     const jsonObj = JSON.parse(evt.data);
-    if (jsonObj.event === "sendToPropertyInspector" && jsonObj.payload && jsonObj.payload.status) {
-      const el = document.getElementById("connectionStatus");
-      if (el) el.textContent = jsonObj.payload.status;
+    if (jsonObj.event === "sendToPropertyInspector" && jsonObj.payload) {
+      if (jsonObj.payload.status) {
+        const el = document.getElementById("connectionStatus");
+        if (el) el.textContent = jsonObj.payload.status;
+      }
+      if (jsonObj.payload.endpoints) {
+        renderEndpoints(jsonObj.payload.endpoints);
+      }
       return;
     }
     if (original) original(evt);
+    applyConnectionUi();
   };
 }
 
 function testConnection() {
-  sendPayloadToPlugin({ command: "test_connection" });
+  const pick = document.getElementById("connection_pick");
+  if (pick && pick.value !== "manual") return;
+  const status = document.getElementById("connectionStatus");
+  if (status) status.textContent = "Testing…";
+  sendPayloadToPlugin({
+    command: "test_connection",
+    host: (document.getElementById("host") || {}).value || "",
+    password: (document.getElementById("password") || {}).value || "0000",
+  });
 }
 
 document.addEventListener("websocketCreate", () => {
