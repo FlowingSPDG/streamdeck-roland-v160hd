@@ -8,18 +8,25 @@
 <body>
   <div class="sdpi-wrapper">
     <div class="sdpi-item" data-actions="*">
-      <div class="sdpi-item-label">Host</div>
-      <input class="sdpi-item-value sdProperty" id="host" placeholder="192.168.0.1" oninput="setSettings()">
+      <div class="sdpi-item-label">Connection</div>
+      <select class="sdpi-item-value" id="connection_pick" oninput="onConnectionPick()">
+        <option value="manual">Enter IP</option>
+      </select>
     </div>
-    <div class="sdpi-item" data-actions="*">
-      <div class="sdpi-item-label">Password</div>
-      <input class="sdpi-item-value sdProperty" id="password" value="0000" maxlength="4" oninput="setSettings()">
-    </div>
+    <input type="hidden" class="sdProperty" id="connection_mode" value="manual">
     <div class="sdpi-item" data-actions="*">
       <div class="sdpi-item-label">Status</div>
       <div class="sdpi-item-value" id="connectionStatus">Not connected</div>
     </div>
-    <div class="sdpi-item" data-actions="*">
+    <div class="sdpi-item" data-actions="*" data-manual-only>
+      <div class="sdpi-item-label">Host</div>
+      <input class="sdpi-item-value sdProperty" id="host" placeholder="192.168.0.1" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="*" data-manual-only>
+      <div class="sdpi-item-label">Password</div>
+      <input class="sdpi-item-value sdProperty" id="password" value="0000" maxlength="4" oninput="setSettings()">
+    </div>
+    <div class="sdpi-item" data-actions="*" data-manual-only>
       <div class="sdpi-item-label"></div>
       <button class="sdpi-item-value" onclick="testConnection()">Test connection</button>
     </div>

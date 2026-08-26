@@ -111,6 +111,9 @@ pub struct ActionSettings {
     pub exposure_auto: bool,
     #[serde(default)]
     pub tally_check: String,
+    /// `manual` shows Host / Password / Test connection. `saved` uses an existing endpoint.
+    #[serde(default)]
+    pub connection_mode: String,
 }
 
 impl ActionSettings {
@@ -133,17 +136,54 @@ pub struct PiMessage {
     pub property_inspector: Option<String>,
     #[serde(default)]
     pub command: Option<String>,
+    #[serde(default)]
+    pub host: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EndpointInfo {
+    pub host: String,
+    pub password: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct PiOut {
     pub status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub endpoints: Vec<EndpointInfo>,
 }
 
 impl PiOut {
-    pub fn status(status: impl Into<String>) -> Self {
+    pub fn state(status: impl Into<String>, endpoints: Vec<EndpointInfo>) -> Self {
         Self {
             status: status.into(),
+            endpoints,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pi_message_reads_test_connection() {
+        let msg: PiMessage = serde_json::from_str(
+            r#"{"command":"test_connection","host":"192.168.0.10","password":"1234"}"#,
+        )
+        .unwrap();
+        assert_eq!(msg.command.as_deref(), Some("test_connection"));
+        assert_eq!(msg.host.as_deref(), Some("192.168.0.10"));
+        assert_eq!(msg.password.as_deref(), Some("1234"));
+    }
+
+    #[test]
+    fn pi_out_omits_empty_endpoints() {
+        let json = serde_json::to_value(PiOut::state("Connected", Vec::new())).unwrap();
+        assert_eq!(json["status"], "Connected");
+        assert!(json.get("endpoints").is_none());
     }
 }
