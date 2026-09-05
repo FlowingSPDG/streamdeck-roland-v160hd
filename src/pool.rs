@@ -393,21 +393,33 @@ fn is_hard_disconnect(err: &roland_rs::TelnetError) -> bool {
 }
 
 async fn execute(client: &mut AsyncTelnetClient, job: DeviceJob) -> Result<(), String> {
+    // Companion writes DTH fire-and-forget. Waiting 5s for ACK dropped the
+    // only TCP session after every key press.
     match job {
-        DeviceJob::Commands(commands) => client
-            .send_commands(&commands)
+        DeviceJob::Commands(commands) => {
+            for command in &commands {
+                client
+                    .write_command(command)
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        }
+        DeviceJob::PressRelease(sw) => {
+            client
+                .write_command(&v160hd::press_switch(sw))
+                .await
+                .map_err(|e| e.to_string())?;
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            client
+                .write_command(&v160hd::release_switch(sw))
+                .await
+                .map_err(|e| e.to_string())
+        }
+        DeviceJob::Write(command) => client
+            .write_command(&command)
             .await
             .map_err(|e| e.to_string()),
-        DeviceJob::PressRelease(sw) => client
-            .press_and_release(sw)
-            .await
-            .map_err(|e| e.to_string()),
-        DeviceJob::Write(command) => match client.send_command(&command).await {
-            Ok(roland_rs::Response::Acknowledge) => Ok(()),
-            Ok(roland_rs::Response::Error(e)) => Err(e.to_string()),
-            Ok(other) => Err(format!("unexpected response: {other:?}")),
-            Err(e) => Err(e.to_string()),
-        },
     }
 }
 

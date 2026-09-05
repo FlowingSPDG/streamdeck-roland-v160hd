@@ -95,7 +95,10 @@ async fn main() {
                 match msg {
                     Some(Ok(message)) => plugin.handle(message),
                     Some(Err(e)) => {
-                        plugin.log(format!("streamdeck read error: {e:?}"));
+                        plugin_log::write_line(&format!("streamdeck read error: {e:?}"));
+                        if matches!(e, streamdeck_rs::socket::StreamDeckSocketError::WebSocketError(_)) {
+                            break;
+                        }
                     }
                     None => break,
                 }
@@ -127,6 +130,7 @@ async fn main() {
                 }
                 if let Err(e) = send_out(&mut socket, out).await {
                     plugin_log::write_line(&format!("streamdeck write error: {e:?}"));
+                    break;
                 }
             }
             log = log_rx.recv() => {
@@ -330,7 +334,7 @@ impl Plugin {
     fn watch_key(&mut self, action: String, context: String, settings: ActionSettings) {
         let endpoint = EndpointKey::from_settings(&settings);
         if settings.should_connect() {
-            self.log(format!(
+            plugin_log::write_line(&format!(
                 "pin host={}",
                 endpoint.as_ref().map(|k| k.host.as_str()).unwrap_or("")
             ));
@@ -349,10 +353,6 @@ impl Plugin {
     fn unwatch_key(&mut self, context: &str) {
         self.watches.remove(context);
         self.last_light.remove(context);
-        let _ = self.outgoing.send(Outgoing::SetImage {
-            context: context.to_string(),
-            image: None,
-        });
     }
 
     fn refresh_tally_image(&mut self, context: &str) {
@@ -374,8 +374,12 @@ impl Plugin {
         if self.last_light.get(context) == Some(&light) {
             return;
         }
-        self.last_light.insert(context.to_string(), light);
-        let image = light.map(image_data_uri);
+        let previous = self.last_light.insert(context.to_string(), light);
+        let image = match light {
+            Some(light) => Some(image_data_uri(light)),
+            None if previous.flatten().is_some() => Some(String::new()),
+            None => return,
+        };
         let _ = self.outgoing.send(Outgoing::SetImage {
             context: context.to_string(),
             image,
