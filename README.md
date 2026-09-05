@@ -8,7 +8,7 @@ Elgato Stream DeckからRoland V-160HDをLAN（TCP 8023）で操作するプラ�
 
 ## Download
 
-[最新リリース](https://github.com/FlowingSPDG/streamdeck-roland-v160hd/releases/latest)から`.streamDeckPlugin`をダウンロードし、ダブルクリックしてStream Deckにインストールしてください。
+[最新リリース](https://github.com/MikanseiLaboratory/streamdeck-roland-v160hd/releases/latest)から`.streamDeckPlugin`をダウンロードし、ダブルクリックしてStream Deckにインストールしてください。
 
 ## 動作
 

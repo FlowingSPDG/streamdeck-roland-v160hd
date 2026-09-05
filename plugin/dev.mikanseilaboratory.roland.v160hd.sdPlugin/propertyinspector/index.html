@@ -14,19 +14,22 @@
       </select>
     </div>
     <input type="hidden" class="sdProperty" id="connection_mode" value="manual">
+    <input type="hidden" class="sdProperty" id="host">
+    <input type="hidden" class="sdProperty" id="password" value="0000">
+    <input type="hidden" class="sdProperty" id="connection_verified">
     <div class="sdpi-item" data-actions="*">
       <div class="sdpi-item-label">Status</div>
       <div class="sdpi-item-value" id="connectionStatus">Not connected</div>
     </div>
-    <div class="sdpi-item" data-actions="*" data-manual-only>
+    <div class="sdpi-item" data-actions="*">
       <div class="sdpi-item-label">Host</div>
-      <input class="sdpi-item-value sdProperty" id="host" placeholder="192.168.0.1" oninput="setSettings()">
+      <input class="sdpi-item-value" id="host_input" placeholder="192.168.0.1" oninput="onConnectionDraftChange()">
     </div>
-    <div class="sdpi-item" data-actions="*" data-manual-only>
-      <div class="sdpi-item-label">Password</div>
-      <input class="sdpi-item-value sdProperty" id="password" value="0000" maxlength="4" oninput="setSettings()">
+    <div class="sdpi-item" data-actions="*">
+      <div class="sdpi-item-label">Network password</div>
+      <input class="sdpi-item-value" id="password_input" value="0000" maxlength="4" placeholder="0000" inputmode="numeric" oninput="onConnectionDraftChange()">
     </div>
-    <div class="sdpi-item" data-actions="*" data-manual-only>
+    <div class="sdpi-item" data-actions="*">
       <div class="sdpi-item-label"></div>
       <button class="sdpi-item-value" onclick="testConnection()">Test connection</button>
     </div>
