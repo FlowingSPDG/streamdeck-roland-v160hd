@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use roland_rs::devices::v160hd;
-use roland_rs::devices::v160hd::{TallySource, TallyState};
-use roland_rs::{AsyncTelnetClient, Command, Response};
+use roland_rs::devices::v160hd::TallyState;
+use roland_rs::{Address, AsyncTelnetClient, Command, Response};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::actions::DeviceJob;
@@ -12,6 +12,8 @@ use crate::settings::ActionSettings;
 const IDLE_SECS: u64 = 30;
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
 const TALLY_POLL: Duration = Duration::from_secs(2);
+/// Official tally map is `0C0000`..=`0C0033` (HDMI/SDI/Still/Input).
+const TALLY_ADDR_MAX: u8 = 0x33;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EndpointKey {
@@ -451,14 +453,12 @@ fn format_response(response: &Response) -> String {
 }
 
 fn tally_byte_reads() -> Vec<Command> {
-    let mut commands = Vec::with_capacity(16);
-    for n in 1..=8 {
-        commands.push(v160hd::read_tally(TallySource::hdmi(n).expect("hdmi 1-8")));
-    }
-    for n in 1..=8 {
-        commands.push(v160hd::read_tally(TallySource::sdi(n).expect("sdi 1-8")));
-    }
-    commands
+    (0..=TALLY_ADDR_MAX)
+        .map(|low| Command::ReadParameter {
+            address: Address::new(0x0C, 0x00, low),
+            size: 1,
+        })
+        .collect()
 }
 
 /// Official `RQH:0C00xx,000001;` for each HDMI/SDI connector.
@@ -479,7 +479,10 @@ async fn request_tally_bytes(
             }
         }
     }
-    let _ = log_tx.send(format!("tally poll requested host={host} count=16"));
+    let _ = log_tx.send(format!(
+        "tally poll requested host={host} count={}",
+        u16::from(TALLY_ADDR_MAX) + 1
+    ));
     false
 }
 
@@ -552,11 +555,14 @@ mod tests {
     #[test]
     fn tally_byte_reads_are_official_one_byte_rqh() {
         let cmds = tally_byte_reads();
-        assert_eq!(cmds.len(), 16);
+        assert_eq!(cmds.len(), usize::from(TALLY_ADDR_MAX) + 1);
         assert_eq!(cmds[0].encode(), "RQH:0C0000,000001;");
         assert_eq!(cmds[7].encode(), "RQH:0C0007,000001;");
         assert_eq!(cmds[8].encode(), "RQH:0C0008,000001;");
         assert_eq!(cmds[15].encode(), "RQH:0C000F,000001;");
+        assert_eq!(cmds[16].encode(), "RQH:0C0010,000001;");
+        assert_eq!(cmds[32].encode(), "RQH:0C0020,000001;");
+        assert_eq!(cmds[51].encode(), "RQH:0C0033,000001;");
     }
 
     #[test]

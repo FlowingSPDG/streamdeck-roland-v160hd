@@ -73,6 +73,8 @@ pub fn tally_source_index(source: &str) -> Option<u8> {
     match kind {
         "hdmi" if (1..=8).contains(&n) => Some(n - 1),
         "sdi" if (1..=8).contains(&n) => Some(0x08 + n - 1),
+        "still" if (1..=16).contains(&n) => Some(0x10 + n - 1),
+        "input" if (1..=20).contains(&n) => Some(0x20 + n - 1),
         _ => None,
     }
 }
@@ -103,7 +105,9 @@ mod tests {
     fn hdmi_and_sdi_map_to_tally_index() {
         assert_eq!(tally_source_index("hdmi:1"), Some(0));
         assert_eq!(tally_source_index("sdi:1"), Some(8));
-        assert_eq!(tally_source_index("still:1"), None);
+        assert_eq!(tally_source_index("still:1"), Some(0x10));
+        assert_eq!(tally_source_index("input:1"), Some(0x20));
+        assert_eq!(tally_source_index("input:20"), Some(0x33));
     }
 
     #[test]

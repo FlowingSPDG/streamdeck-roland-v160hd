@@ -14,8 +14,8 @@ path = "src/main.rs"
 
 [dependencies]
 futures = "0.3"
-# V-160HD VER framing + write_command: https://github.com/FlowingSPDG/roland-rs/pull/11
-roland-rs = { git = "https://github.com/FlowingSPDG/roland-rs", rev = "ed5e956c4f05ddafc35abc2606823fcae93cba1e", features = ["tokio"] }
+# V-160HD VER framing + 06H ACK / STX DTH: https://github.com/FlowingSPDG/roland-rs/pull/11
+roland-rs = { git = "https://github.com/FlowingSPDG/roland-rs", rev = "5381879a087a4ed66f20f7c76cacaffe891c8f79", features = ["tokio"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 streamdeck-rs = "0.8"

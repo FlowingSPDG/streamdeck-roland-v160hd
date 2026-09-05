@@ -17,6 +17,9 @@ use streamdeck_rs::{ImagePayload, Message, MessageOut, StreamDeckSocket, Target}
 use tally::{image_data_uri, TallyBinding, TallyLight};
 use tokio::sync::{mpsc, oneshot};
 
+/// Official `0C00xx` tally map: HDMI 00–07, SDI 08–0F, Still 10–1F, Input 20–33.
+const TALLY_SLOTS: usize = 0x34;
+
 type SdSocket = StreamDeckSocket<(), ActionSettings, PiMessage, PiOut>;
 
 enum Outgoing {
@@ -60,7 +63,7 @@ struct Plugin {
     pool: Pool,
     open_pi: HashMap<String, String>,
     watches: HashMap<String, KeyWatch>,
-    tally_states: HashMap<EndpointKey, [TallyState; 16]>,
+    tally_states: HashMap<EndpointKey, [TallyState; TALLY_SLOTS]>,
     last_light: HashMap<String, Option<TallyLight>>,
     outgoing: mpsc::UnboundedSender<Outgoing>,
 }
@@ -319,7 +322,7 @@ impl Plugin {
         let slot = self
             .tally_states
             .entry(key.clone())
-            .or_insert([TallyState::Off; 16]);
+            .or_insert([TallyState::Off; TALLY_SLOTS]);
         for (index, state) in updates {
             if let Some(entry) = slot.get_mut(index as usize) {
                 *entry = state;
