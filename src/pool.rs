@@ -20,16 +20,25 @@ pub struct EndpointKey {
 }
 
 impl EndpointKey {
+    pub fn new(host: impl Into<String>, password: impl Into<String>) -> Self {
+        let password = password.into();
+        Self {
+            host: host.into(),
+            port: v160hd::TELNET_PORT,
+            password: if password.is_empty() {
+                "0000".to_string()
+            } else {
+                password
+            },
+        }
+    }
+
     pub fn from_settings(settings: &ActionSettings) -> Option<Self> {
         let host = settings.host_trimmed();
         if host.is_empty() {
             return None;
         }
-        Some(Self {
-            host: host.to_string(),
-            port: v160hd::TELNET_PORT,
-            password: settings.password().to_string(),
-        })
+        Some(Self::new(host, settings.password()))
     }
 }
 
@@ -339,5 +348,29 @@ async fn execute(client: &mut AsyncTelnetClient, job: DeviceJob) -> Result<(), S
             Ok(_) => Err("unexpected response".to_string()),
             Err(e) => Err(e.to_string()),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::ActionSettings;
+
+    #[test]
+    fn from_settings_skips_empty_host() {
+        assert!(EndpointKey::from_settings(&ActionSettings::default()).is_none());
+    }
+
+    #[test]
+    fn from_settings_uses_host_and_password() {
+        let settings = ActionSettings {
+            host: " 10.0.0.1 ".into(),
+            password: "1234".into(),
+            ..ActionSettings::default()
+        };
+        let key = EndpointKey::from_settings(&settings).unwrap();
+        assert_eq!(key.host, "10.0.0.1");
+        assert_eq!(key.password, "1234");
+        assert_eq!(key.port, v160hd::TELNET_PORT);
     }
 }

@@ -40,6 +40,14 @@ enum Outgoing {
     Log {
         message: String,
     },
+    Tested {
+        action: String,
+        context: String,
+        host: String,
+        password: String,
+        ok: bool,
+        status: String,
+    },
 }
 
 struct KeyWatch {
@@ -88,6 +96,26 @@ async fn main() {
             }
             out = outgoing_rx.recv() => {
                 let Some(out) = out else { break };
+                if let Outgoing::Tested {
+                    action,
+                    context,
+                    host,
+                    password,
+                    ok,
+                    status,
+                } = out
+                {
+                    if ok {
+                        plugin.commit_connection(&context, host, password);
+                    }
+                    plugin.open_pi.insert(context.clone(), action.clone());
+                    let _ = plugin.outgoing.send(Outgoing::ToPi {
+                        action,
+                        context,
+                        payload: PiOut::test_result(status, ok),
+                    });
+                    continue;
+                }
                 if let Err(e) = send_out(&mut socket, out).await {
                     eprintln!("streamdeck write error: {e:?}");
                 }
@@ -144,6 +172,9 @@ async fn send_out(socket: &mut SdSocket, out: Outgoing) -> Result<(), String> {
                     payload: streamdeck_rs::LogMessagePayload { message },
                 })
                 .await
+        }
+        Outgoing::Tested { .. } => {
+            unreachable!("Tested events are handled before send_out")
         }
     };
     result.map_err(|e| format!("{e:?}"))
@@ -230,16 +261,28 @@ impl Plugin {
         self.push_status_value(&context, "Testing…".to_string());
         let outgoing = self.outgoing.clone();
         tokio::spawn(async move {
-            let status = match ver_probe(&host, &password).await {
-                Ok((product, version)) => format!("Connected ({product} {version})"),
-                Err(e) => format!("Failed ({e})"),
+            let (ok, status) = match ver_probe(&host, &password).await {
+                Ok((product, version)) => (true, format!("Connected ({product} {version})")),
+                Err(e) => (false, format!("Failed ({e})")),
             };
-            let _ = outgoing.send(Outgoing::ToPi {
+            let _ = outgoing.send(Outgoing::Tested {
                 action,
                 context,
-                payload: PiOut::state(status, Vec::new()),
+                host,
+                password,
+                ok,
+                status,
             });
         });
+    }
+
+    fn commit_connection(&mut self, context: &str, host: String, password: String) {
+        let key = EndpointKey::new(host, password);
+        if let Some(watch) = self.watches.get_mut(context) {
+            watch.endpoint = Some(key.clone());
+        }
+        self.pool.pin(context, Some(key));
+        self.refresh_tally_image(context);
     }
 
     fn on_tally(&mut self, key: EndpointKey, updates: Vec<(u8, TallyState)>) {
@@ -260,7 +303,9 @@ impl Plugin {
 
     fn watch_key(&mut self, action: String, context: String, settings: ActionSettings) {
         let endpoint = EndpointKey::from_settings(&settings);
-        self.pool.pin(&context, endpoint.clone());
+        if settings.should_connect() {
+            self.pool.pin(&context, endpoint.clone());
+        }
         self.watches.insert(
             context.clone(),
             KeyWatch {

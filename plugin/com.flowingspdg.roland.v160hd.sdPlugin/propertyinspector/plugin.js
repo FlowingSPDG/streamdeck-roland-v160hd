@@ -87,12 +87,47 @@ function endpointValue(endpoint) {
   return endpoint.host + "\t" + (endpoint.password || "0000");
 }
 
+function connectionField(id) {
+  return document.getElementById(id);
+}
+
+function draftHost() {
+  return ((connectionField("host_input") || {}).value || "").trim();
+}
+
+function draftPassword() {
+  const value = (connectionField("password_input") || {}).value || "";
+  return value || "0000";
+}
+
+function syncConnectionInputsFromSettings() {
+  const host = connectionField("host");
+  const password = connectionField("password");
+  const hostInput = connectionField("host_input");
+  const passwordInput = connectionField("password_input");
+  if (hostInput) hostInput.value = host ? host.value : "";
+  if (passwordInput) passwordInput.value = password && password.value ? password.value : "0000";
+}
+
+function commitConnectionDraft(verified) {
+  const host = connectionField("host");
+  const password = connectionField("password");
+  const verifiedEl = connectionField("connection_verified");
+  const mode = connectionField("connection_mode");
+  if (host) host.value = draftHost();
+  if (password) password.value = draftPassword();
+  if (verifiedEl) verifiedEl.value = verified;
+  if (mode && verified === "true" && mode.value !== "saved") {
+    mode.value = "manual";
+  }
+}
+
 function renderEndpoints(endpoints) {
   const pick = document.getElementById("connection_pick");
   if (!pick) return;
-  const host = document.getElementById("host");
-  const password = document.getElementById("password");
-  const mode = document.getElementById("connection_mode");
+  const host = connectionField("host");
+  const password = connectionField("password");
+  const mode = connectionField("connection_mode");
   pick.innerHTML = "";
   addOption(pick, "manual", "Enter IP");
   const hostCounts = {};
@@ -133,20 +168,32 @@ function applyConnectionUi() {
   });
 }
 
+function onConnectionDraftChange() {
+  const pick = document.getElementById("connection_pick");
+  const mode = connectionField("connection_mode");
+  const verified = connectionField("connection_verified");
+  if (pick) pick.value = "manual";
+  if (mode) mode.value = "manual";
+  if (verified) verified.value = "false";
+  applyConnectionUi();
+}
+
 function onConnectionPick() {
   const pick = document.getElementById("connection_pick");
-  const mode = document.getElementById("connection_mode");
-  const host = document.getElementById("host");
-  const password = document.getElementById("password");
+  const mode = connectionField("connection_mode");
   if (!pick || !mode) return;
   if (pick.value === "manual") {
     mode.value = "manual";
-  } else {
-    const parts = pick.value.split("\t");
-    mode.value = "saved";
-    if (host) host.value = parts[0] || "";
-    if (password) password.value = parts[1] || "0000";
+    applyConnectionUi();
+    return;
   }
+  const parts = pick.value.split("\t");
+  mode.value = "saved";
+  const hostInput = connectionField("host_input");
+  const passwordInput = connectionField("password_input");
+  if (hostInput) hostInput.value = parts[0] || "";
+  if (passwordInput) passwordInput.value = parts[1] || "0000";
+  commitConnectionDraft("true");
   applyConnectionUi();
   setSettings();
 }
@@ -161,27 +208,41 @@ function attachPiMessages() {
         const el = document.getElementById("connectionStatus");
         if (el) el.textContent = jsonObj.payload.status;
       }
+      if (jsonObj.payload.tested === true) {
+        commitConnectionDraft("true");
+        setSettings();
+      }
       if (jsonObj.payload.endpoints) {
         renderEndpoints(jsonObj.payload.endpoints);
       }
       return;
     }
     if (original) original(evt);
+    if (jsonObj.event === "didReceiveSettings") {
+      syncConnectionInputsFromSettings();
+    }
     applyConnectionUi();
   };
 }
 
 function testConnection() {
-  const pick = document.getElementById("connection_pick");
-  if (pick && pick.value !== "manual") return;
   const status = document.getElementById("connectionStatus");
   if (status) status.textContent = "Testing…";
+  commitConnectionDraft("false");
+  setSettings();
   sendPayloadToPlugin({
     command: "test_connection",
-    host: (document.getElementById("host") || {}).value || "",
-    password: (document.getElementById("password") || {}).value || "0000",
+    host: draftHost(),
+    password: draftPassword(),
   });
 }
+
+const originalLoadConfiguration = loadConfiguration;
+loadConfiguration = function (payload) {
+  originalLoadConfiguration(payload);
+  syncConnectionInputsFromSettings();
+  applyConnectionUi();
+};
 
 document.addEventListener("websocketCreate", () => {
   fillSelects();

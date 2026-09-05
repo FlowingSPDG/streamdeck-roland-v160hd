@@ -114,6 +114,10 @@ pub struct ActionSettings {
     /// `manual` shows Host / Password / Test connection. `saved` uses an existing endpoint.
     #[serde(default)]
     pub connection_mode: String,
+    /// `"true"` after a successful Test connection or saved-endpoint pick.
+    /// `"false"` while the user is editing a new host. Empty means legacy settings.
+    #[serde(default)]
+    pub connection_verified: String,
 }
 
 impl ActionSettings {
@@ -127,6 +131,19 @@ impl ActionSettings {
 
     pub fn host_trimmed(&self) -> &str {
         self.host.trim()
+    }
+
+    /// Persistent TCP is opened only for a saved endpoint, a successful test,
+    /// or legacy settings that already stored a host.
+    pub fn should_connect(&self) -> bool {
+        if self.host_trimmed().is_empty() {
+            return false;
+        }
+        match self.connection_verified.as_str() {
+            "true" => true,
+            "false" => false,
+            _ => true,
+        }
     }
 }
 
@@ -154,6 +171,8 @@ pub struct PiOut {
     pub status: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub endpoints: Vec<EndpointInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tested: Option<bool>,
 }
 
 impl PiOut {
@@ -161,6 +180,15 @@ impl PiOut {
         Self {
             status: status.into(),
             endpoints,
+            tested: None,
+        }
+    }
+
+    pub fn test_result(status: impl Into<String>, ok: bool) -> Self {
+        Self {
+            status: status.into(),
+            endpoints: Vec::new(),
+            tested: Some(ok),
         }
     }
 }
@@ -185,5 +213,40 @@ mod tests {
         let json = serde_json::to_value(PiOut::state("Connected", Vec::new())).unwrap();
         assert_eq!(json["status"], "Connected");
         assert!(json.get("endpoints").is_none());
+        assert!(json.get("tested").is_none());
+    }
+
+    #[test]
+    fn pi_out_test_result_marks_success() {
+        let json =
+            serde_json::to_value(PiOut::test_result("Connected (V-160HD 1.10)", true)).unwrap();
+        assert_eq!(json["tested"], true);
+        assert!(json.get("endpoints").is_none());
+    }
+
+    #[test]
+    fn should_connect_waits_for_test_unless_legacy() {
+        let editing = ActionSettings {
+            host: "192.168.0.10".into(),
+            connection_verified: "false".into(),
+            ..ActionSettings::default()
+        };
+        assert!(!editing.should_connect());
+
+        let tested = ActionSettings {
+            host: "192.168.0.10".into(),
+            connection_verified: "true".into(),
+            ..ActionSettings::default()
+        };
+        assert!(tested.should_connect());
+
+        let legacy = ActionSettings {
+            host: "192.168.0.10".into(),
+            ..ActionSettings::default()
+        };
+        assert!(legacy.should_connect());
+
+        let empty = ActionSettings::default();
+        assert!(!empty.should_connect());
     }
 }
