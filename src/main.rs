@@ -200,13 +200,6 @@ impl Plugin {
         let _ = self.outgoing.send(Outgoing::Log {
             message: format!("[v160hd] {message}"),
         });
-        for (context, action) in &self.open_pi {
-            let _ = self.outgoing.send(Outgoing::ToPi {
-                action: action.clone(),
-                context: context.clone(),
-                payload: PiOut::logs_only(),
-            });
-        }
     }
 
     fn handle(&mut self, message: Message<(), ActionSettings, PiMessage>) {

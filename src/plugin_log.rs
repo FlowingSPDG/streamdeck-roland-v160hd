@@ -4,11 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const MAX_LINES: usize = 200;
-
 struct LogState {
     path: PathBuf,
-    lines: Vec<String>,
 }
 
 static STATE: OnceLock<Mutex<LogState>> = OnceLock::new();
@@ -19,10 +16,7 @@ fn state() -> &'static Mutex<LogState> {
         if let Some(parent) = path.parent() {
             let _ = fs::create_dir_all(parent);
         }
-        Mutex::new(LogState {
-            path,
-            lines: Vec::new(),
-        })
+        Mutex::new(LogState { path })
     })
 }
 
@@ -77,21 +71,9 @@ pub fn path_display() -> String {
 pub fn write_line(message: &str) {
     let line = format!("{} {message}", timestamp());
     eprintln!("{line}");
-    if let Ok(mut state) = state().lock() {
+    if let Ok(state) = state().lock() {
         append_file(&state.path, &line);
-        state.lines.push(line);
-        let extra = state.lines.len().saturating_sub(MAX_LINES);
-        if extra > 0 {
-            state.lines.drain(..extra);
-        }
     }
-}
-
-pub fn tail() -> String {
-    state()
-        .lock()
-        .map(|s| s.lines.join("\n"))
-        .unwrap_or_default()
 }
 
 fn append_file(path: &Path, line: &str) {

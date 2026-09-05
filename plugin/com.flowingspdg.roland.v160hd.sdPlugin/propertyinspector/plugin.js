@@ -208,14 +208,6 @@ function attachPiMessages() {
         const el = document.getElementById("connectionStatus");
         if (el) el.textContent = jsonObj.payload.status;
       }
-      if (jsonObj.payload.logs) {
-        const logEl = document.getElementById("pluginLog");
-        if (logEl) logEl.value = jsonObj.payload.logs;
-      }
-      if (jsonObj.payload.log_path) {
-        const pathEl = document.getElementById("logPath");
-        if (pathEl) pathEl.textContent = jsonObj.payload.log_path;
-      }
       if (jsonObj.payload.tested === true) {
         commitConnectionDraft("true");
         setSettings();
