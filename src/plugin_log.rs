@@ -21,7 +21,7 @@ fn state() -> &'static Mutex<LogState> {
 }
 
 fn default_path() -> PathBuf {
-    let file = "com.flowingspdg.roland.v160hd.log";
+    let file = "dev.mikanseilaboratory.roland.v160hd.log";
     if cfg!(windows) {
         if let Ok(appdata) = std::env::var("APPDATA") {
             return PathBuf::from(appdata)
@@ -92,6 +92,6 @@ mod tests {
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .contains("com.flowingspdg.roland.v160hd.log"));
+            .contains("dev.mikanseilaboratory.roland.v160hd.log"));
     }
 }

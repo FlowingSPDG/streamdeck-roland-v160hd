@@ -67,6 +67,9 @@ pub enum Work {
         job: DeviceJob,
         reply: oneshot::Sender<Result<(), String>>,
     },
+    GetVersion {
+        reply: oneshot::Sender<Result<(String, String), String>>,
+    },
     Stop,
 }
 
@@ -185,6 +188,10 @@ impl Pool {
         );
     }
 
+    pub fn existing_sender(&self, key: &EndpointKey) -> Option<mpsc::UnboundedSender<Work>> {
+        self.endpoints.get(key).map(|slot| slot.tx.clone())
+    }
+
     pub fn sender(&mut self, key: &EndpointKey) -> mpsc::UnboundedSender<Work> {
         if let Some(slot) = self.endpoints.get(key) {
             return slot.tx.clone();
@@ -255,21 +262,36 @@ async fn run_endpoint(
             match AsyncTelnetClient::connect_v160hd(&key.host, &key.password).await {
                 Ok(mut connected) => {
                     let _ = log_tx.send(format!("authenticated host={}", key.host));
-                    // Subscribe so the switcher pushes tally DTH on its own.
-                    // recv() in the idle loop picks those up; no polling.
-                    if let Err(e) = connected.send_command(&v160hd::subscribe_tally(true)).await {
-                        let _ =
-                            log_tx.send(format!("subscribe_tally failed host={}: {e}", key.host));
-                        let status = ConnectionStatus::Retrying {
-                            backoff_secs: backoff.as_secs().max(1),
-                            error: e.to_string(),
-                        };
-                        let _ = status_tx.send((key.clone(), status.clone()));
-                        if wait_backoff(&mut rx, backoff, &status).await {
-                            return;
+                    // Companion sends DTH:0C0100 fire-and-forget. The unit often
+                    // never ACKs this address; waiting for a reply closed the
+                    // only allowed TCP session and blocked every key press.
+                    match connected
+                        .write_command(&v160hd::subscribe_tally(true))
+                        .await
+                    {
+                        Ok(()) => {
+                            let _ = log_tx.send(format!("subscribe_tally sent host={}", key.host));
                         }
-                        backoff = (backoff * 2).min(MAX_BACKOFF);
-                        continue;
+                        Err(e) if is_hard_disconnect(&e) => {
+                            let _ = log_tx
+                                .send(format!("subscribe_tally failed host={}: {e}", key.host));
+                            let status = ConnectionStatus::Retrying {
+                                backoff_secs: backoff.as_secs().max(1),
+                                error: e.to_string(),
+                            };
+                            let _ = status_tx.send((key.clone(), status.clone()));
+                            if wait_backoff(&mut rx, backoff, &status).await {
+                                return;
+                            }
+                            backoff = (backoff * 2).min(MAX_BACKOFF);
+                            continue;
+                        }
+                        Err(e) => {
+                            let _ = log_tx.send(format!(
+                                "subscribe_tally write warning host={}: {e}",
+                                key.host
+                            ));
+                        }
                     }
                     client = Some(connected);
                     backoff = Duration::from_secs(1);
@@ -324,6 +346,15 @@ async fn run_endpoint(
                         }
                         let _ = reply.send(result);
                     }
+                    Some(Work::GetVersion { reply }) => {
+                        let result = c.get_version().await.map_err(|e| e.to_string());
+                        if let Err(e) = &result {
+                            let _ =
+                                log_tx.send(format!("get_version failed host={}: {e}", key.host));
+                            drop_client = true;
+                        }
+                        let _ = reply.send(result);
+                    }
                 }
             }
         }
@@ -346,8 +377,26 @@ async fn wait_backoff(
                 Some(Work::Exec { reply, .. }) => {
                     let _ = reply.send(Err(status.label()));
                 }
+                Some(Work::GetVersion { reply }) => {
+                    let _ = reply.send(Err(status.label()));
+                }
             }
         }
+    }
+}
+
+fn is_hard_disconnect(err: &roland_rs::TelnetError) -> bool {
+    match err {
+        roland_rs::TelnetError::ConnectionClosed => true,
+        roland_rs::TelnetError::Io(e) => matches!(
+            e.kind(),
+            std::io::ErrorKind::ConnectionReset
+                | std::io::ErrorKind::ConnectionAborted
+                | std::io::ErrorKind::BrokenPipe
+                | std::io::ErrorKind::UnexpectedEof
+                | std::io::ErrorKind::NotConnected
+        ),
+        _ => false,
     }
 }
 
@@ -391,5 +440,26 @@ mod tests {
         assert_eq!(key.host, "10.0.0.1");
         assert_eq!(key.password, "1234");
         assert_eq!(key.port, v160hd::TELNET_PORT);
+    }
+
+    #[test]
+    fn timeout_is_not_a_hard_disconnect() {
+        let err = roland_rs::TelnetError::Io(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "read timed out",
+        ));
+        assert!(!is_hard_disconnect(&err));
+    }
+
+    #[test]
+    fn connection_reset_is_a_hard_disconnect() {
+        let err = roland_rs::TelnetError::Io(std::io::Error::new(
+            std::io::ErrorKind::ConnectionReset,
+            "reset",
+        ));
+        assert!(is_hard_disconnect(&err));
+        assert!(is_hard_disconnect(
+            &roland_rs::TelnetError::ConnectionClosed
+        ));
     }
 }

@@ -4,24 +4,24 @@ use roland_rs::{Address, Command, RolandError};
 use crate::settings::ActionSettings;
 
 #[allow(dead_code)]
-pub const UUID_PREFIX: &str = "com.flowingspdg.roland.v160hd.";
+pub const UUID_PREFIX: &str = "dev.mikanseilaboratory.roland.v160hd.";
 
-pub const SELECT_PGM: &str = "com.flowingspdg.roland.v160hd.select.pgm";
-pub const SELECT_PST: &str = "com.flowingspdg.roland.v160hd.select.pst";
-pub const CUT: &str = "com.flowingspdg.roland.v160hd.cut";
-pub const AUTO: &str = "com.flowingspdg.roland.v160hd.auto";
-pub const PANEL_SWITCH: &str = "com.flowingspdg.roland.v160hd.panel.switch";
-pub const INPUT_ASSIGN: &str = "com.flowingspdg.roland.v160hd.input.assign";
-pub const OUTPUT_ASSIGN: &str = "com.flowingspdg.roland.v160hd.output.assign";
-pub const AUX: &str = "com.flowingspdg.roland.v160hd.aux";
-pub const LAYER_ENABLE: &str = "com.flowingspdg.roland.v160hd.layer.enable";
-pub const PINP: &str = "com.flowingspdg.roland.v160hd.pinp";
-pub const DSK: &str = "com.flowingspdg.roland.v160hd.dsk";
-pub const TRANSITION: &str = "com.flowingspdg.roland.v160hd.transition";
-pub const MEMORY: &str = "com.flowingspdg.roland.v160hd.memory";
-pub const FREEZE: &str = "com.flowingspdg.roland.v160hd.freeze";
-pub const MACRO: &str = "com.flowingspdg.roland.v160hd.macro";
-pub const CAMERA: &str = "com.flowingspdg.roland.v160hd.camera";
+pub const SELECT_PGM: &str = "dev.mikanseilaboratory.roland.v160hd.select.pgm";
+pub const SELECT_PST: &str = "dev.mikanseilaboratory.roland.v160hd.select.pst";
+pub const CUT: &str = "dev.mikanseilaboratory.roland.v160hd.cut";
+pub const AUTO: &str = "dev.mikanseilaboratory.roland.v160hd.auto";
+pub const PANEL_SWITCH: &str = "dev.mikanseilaboratory.roland.v160hd.panel.switch";
+pub const INPUT_ASSIGN: &str = "dev.mikanseilaboratory.roland.v160hd.input.assign";
+pub const OUTPUT_ASSIGN: &str = "dev.mikanseilaboratory.roland.v160hd.output.assign";
+pub const AUX: &str = "dev.mikanseilaboratory.roland.v160hd.aux";
+pub const LAYER_ENABLE: &str = "dev.mikanseilaboratory.roland.v160hd.layer.enable";
+pub const PINP: &str = "dev.mikanseilaboratory.roland.v160hd.pinp";
+pub const DSK: &str = "dev.mikanseilaboratory.roland.v160hd.dsk";
+pub const TRANSITION: &str = "dev.mikanseilaboratory.roland.v160hd.transition";
+pub const MEMORY: &str = "dev.mikanseilaboratory.roland.v160hd.memory";
+pub const FREEZE: &str = "dev.mikanseilaboratory.roland.v160hd.freeze";
+pub const MACRO: &str = "dev.mikanseilaboratory.roland.v160hd.macro";
+pub const CAMERA: &str = "dev.mikanseilaboratory.roland.v160hd.camera";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Gesture {

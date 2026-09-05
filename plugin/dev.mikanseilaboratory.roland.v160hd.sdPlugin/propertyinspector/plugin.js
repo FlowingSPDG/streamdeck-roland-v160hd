@@ -1,4 +1,4 @@
-const PREFIX = "com.flowingspdg.roland.v160hd.";
+const PREFIX = "dev.mikanseilaboratory.roland.v160hd.";
 
 function addOption(select, value, label) {
   const opt = document.createElement("option");

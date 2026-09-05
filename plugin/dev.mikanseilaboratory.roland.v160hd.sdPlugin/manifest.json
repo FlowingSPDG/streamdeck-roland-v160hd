@@ -1,15 +1,15 @@
 {
   "SDKVersion": 2,
-  "Author": "Shugo Kawamura",
+  "Author": "未完成成果物研究所",
   "CodePath": "bin/plugin",
   "CodePathWin": "bin/plugin.exe",
   "CodePathMac": "bin/plugin",
   "Description": "Roland V-160HD LAN control for Stream Deck.",
-  "Name": "Roland V-160HD [FlowingSPDG]",
+  "Name": "Roland V-160HD [MikanseiLaboratory]",
   "Icon": "images/plugin",
-  "Category": "Roland V-160HD [FlowingSPDG]",
+  "Category": "Roland V-160HD [MikanseiLaboratory]",
   "CategoryIcon": "images/plugin",
-  "UUID": "com.flowingspdg.roland.v160hd",
+  "UUID": "dev.mikanseilaboratory.roland.v160hd",
   "Version": "0.0.0.0",
   "OS": [
     { "Platform": "windows", "MinimumVersion": "10" },
@@ -22,7 +22,7 @@
       "Name": "Select PGM",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "V-160HDのPGMソースを切り替える",
-      "UUID": "com.flowingspdg.roland.v160hd.select.pgm",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.select.pgm",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -30,7 +30,7 @@
       "Name": "Select PRV",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "V-160HDのPRVソースを切り替える",
-      "UUID": "com.flowingspdg.roland.v160hd.select.pst",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.select.pst",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -38,7 +38,7 @@
       "Name": "CUT",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "CUTスイッチ",
-      "UUID": "com.flowingspdg.roland.v160hd.cut",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.cut",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -46,7 +46,7 @@
       "Name": "AUTO",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "AUTOトランジション",
-      "UUID": "com.flowingspdg.roland.v160hd.auto",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.auto",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -54,7 +54,7 @@
       "Name": "Panel Switch",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "パネルスイッチを押す / 離す",
-      "UUID": "com.flowingspdg.roland.v160hd.panel.switch",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.panel.switch",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -62,7 +62,7 @@
       "Name": "Input Assign",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "入力チャンネルのソース割り当て",
-      "UUID": "com.flowingspdg.roland.v160hd.input.assign",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.input.assign",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -70,7 +70,7 @@
       "Name": "Output Assign",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "出力コネクタのバス割り当て",
-      "UUID": "com.flowingspdg.roland.v160hd.output.assign",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.output.assign",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -78,7 +78,7 @@
       "Name": "AUX",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "AUXソース / ミュート / リンク",
-      "UUID": "com.flowingspdg.roland.v160hd.aux",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.aux",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -86,7 +86,7 @@
       "Name": "Layer Enable",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "PGM / SUB PGMのPinP・DSKレイヤー",
-      "UUID": "com.flowingspdg.roland.v160hd.layer.enable",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.layer.enable",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -94,7 +94,7 @@
       "Name": "PinP",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "PinP & Keyパラメータ",
-      "UUID": "com.flowingspdg.roland.v160hd.pinp",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.pinp",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -102,7 +102,7 @@
       "Name": "DSK",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "DSKパラメータ",
-      "UUID": "com.flowingspdg.roland.v160hd.dsk",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.dsk",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -110,7 +110,7 @@
       "Name": "Transition",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "トランジション種別と時間",
-      "UUID": "com.flowingspdg.roland.v160hd.transition",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.transition",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -118,7 +118,7 @@
       "Name": "Memory",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "プリセットメモリの読み込み / 保存 / 初期化",
-      "UUID": "com.flowingspdg.roland.v160hd.memory",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.memory",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -126,7 +126,7 @@
       "Name": "Freeze",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "フリーズ",
-      "UUID": "com.flowingspdg.roland.v160hd.freeze",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.freeze",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -134,7 +134,7 @@
       "Name": "Macro",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "マクロ実行",
-      "UUID": "com.flowingspdg.roland.v160hd.macro",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.macro",
       "PropertyInspectorPath": "propertyinspector/index.html"
     },
     {
@@ -142,7 +142,7 @@
       "Name": "Camera",
       "States": [{ "Image": "images/plugin" }],
       "Tooltip": "カメラPTZ。パン / チルト / ズーム / フォーカスは押している間動作",
-      "UUID": "com.flowingspdg.roland.v160hd.camera",
+      "UUID": "dev.mikanseilaboratory.roland.v160hd.camera",
       "PropertyInspectorPath": "propertyinspector/index.html"
     }
   ]

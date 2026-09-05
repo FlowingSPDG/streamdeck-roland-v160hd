@@ -284,6 +284,23 @@ impl Plugin {
             password.len()
         ));
         self.push_status_value(&context, "Testing…".to_string());
+        let key = EndpointKey::new(&host, &password);
+        if let Some(tx) = self.pool.existing_sender(&key) {
+            self.log(format!("test_connection reuse pool host={host}"));
+            let outgoing = self.outgoing.clone();
+            tokio::spawn(async move {
+                let (ok, status) = pool_ver_probe(tx).await;
+                let _ = outgoing.send(Outgoing::Tested {
+                    action,
+                    context,
+                    host,
+                    password,
+                    ok,
+                    status,
+                });
+            });
+            return;
+        }
         let outgoing = self.outgoing.clone();
         let log_host = host.clone();
         tokio::spawn(async move {
@@ -497,6 +514,21 @@ impl Plugin {
 
 fn gesture_show_ok(gesture: Gesture) -> bool {
     gesture == Gesture::Down
+}
+
+async fn pool_ver_probe(tx: mpsc::UnboundedSender<Work>) -> (bool, String) {
+    let (reply_tx, reply_rx) = oneshot::channel();
+    if tx.send(Work::GetVersion { reply: reply_tx }).is_err() {
+        return (false, "Failed (not connected)".to_string());
+    }
+    match reply_rx.await {
+        Ok(Ok((product, version))) => (true, format!("Connected ({product} {version})")),
+        Ok(Err(e)) => {
+            plugin_log::write_line(&format!("pool_ver_probe error={e}"));
+            (false, format!("Failed ({e})"))
+        }
+        Err(_) => (false, "Failed (not connected)".to_string()),
+    }
 }
 
 async fn ver_probe(host: &str, password: &str) -> Result<(String, String), String> {
