@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use roland_rs::devices::v160hd;
 use roland_rs::devices::v160hd::TallyState;
@@ -11,6 +11,7 @@ use crate::settings::ActionSettings;
 
 const IDLE_SECS: u64 = 30;
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
+const TALLY_POLL: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EndpointKey {
@@ -251,6 +252,8 @@ async fn run_endpoint(
 ) {
     let mut client: Option<AsyncTelnetClient> = None;
     let mut backoff = Duration::from_secs(1);
+    let mut last_tally: Option<Instant> = None;
+    let mut next_tally_poll = tokio::time::Instant::now();
     let _ = log_tx.send(format!("pool start host={} port={}", key.host, key.port));
 
     loop {
@@ -291,7 +294,21 @@ async fn run_endpoint(
                             ));
                         }
                     }
+                    if request_tally_dump(&mut connected, &key.host, &log_tx).await {
+                        let status = ConnectionStatus::Retrying {
+                            backoff_secs: backoff.as_secs().max(1),
+                            error: "tally dump write failed".to_string(),
+                        };
+                        let _ = status_tx.send((key.clone(), status.clone()));
+                        if wait_backoff(&mut rx, backoff, &status).await {
+                            return;
+                        }
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
                     client = Some(connected);
+                    last_tally = None;
+                    next_tally_poll = tokio::time::Instant::now() + TALLY_POLL;
                     backoff = Duration::from_secs(1);
                     let _ = log_tx.send(format!("connected host={}", key.host));
                     let _ = status_tx.send((key.clone(), ConnectionStatus::Connected));
@@ -322,6 +339,12 @@ async fn run_endpoint(
                     match incoming {
                         Ok(response) => {
                             if let Some(updates) = v160hd::tally_updates(&response) {
+                                last_tally = Some(Instant::now());
+                                let _ = log_tx.send(format!(
+                                    "tally host={} updates={}",
+                                    key.host,
+                                    updates.len()
+                                ));
                                 let _ = tally_tx.send((key.clone(), updates));
                             }
                         }
@@ -331,22 +354,33 @@ async fn run_endpoint(
                         }
                     }
                 }
-                work = rx.recv() => match work {
-                    None | Some(Work::Stop) => {
-                        let _ = log_tx.send(format!("pool stop host={}", key.host));
-                        return;
-                    }
-                    Some(Work::Exec { job, reply }) => {
-                        let result = execute(c, job).await;
-                        if let Err(e) = &result {
-                            let _ = log_tx.send(format!("command failed host={}: {e}", key.host));
-                            drop_client = true;
+                work = rx.recv() => {
+                    match work {
+                        None | Some(Work::Stop) => {
+                            let _ = log_tx.send(format!("pool stop host={}", key.host));
+                            return;
                         }
-                        let _ = reply.send(result);
+                        Some(Work::Exec { job, reply }) => {
+                            let result = execute(c, job).await;
+                            if let Err(e) = &result {
+                                let _ = log_tx.send(format!("command failed host={}: {e}", key.host));
+                                drop_client = true;
+                            }
+                            let _ = reply.send(result);
+                        }
+                        Some(Work::Probe { reply }) => {
+                            let _ = reply.send(Ok(()));
+                        }
                     }
-                    Some(Work::Probe { reply }) => {
-                        let _ = reply.send(Ok(()));
+                }
+                _ = tokio::time::sleep_until(next_tally_poll) => {
+                    let stale = last_tally
+                        .map(|t| t.elapsed() >= TALLY_POLL)
+                        .unwrap_or(true);
+                    if stale && request_tally_dump(c, &key.host, &log_tx).await {
+                        drop_client = true;
                     }
+                    next_tally_poll = tokio::time::Instant::now() + TALLY_POLL;
                 }
             }
         }
@@ -389,6 +423,28 @@ fn is_hard_disconnect(err: &roland_rs::TelnetError) -> bool {
                 | std::io::ErrorKind::NotConnected
         ),
         _ => false,
+    }
+}
+
+/// Returns true when the TCP session should be dropped.
+async fn request_tally_dump(
+    client: &mut AsyncTelnetClient,
+    host: &str,
+    log_tx: &mpsc::UnboundedSender<String>,
+) -> bool {
+    match client.write_command(&v160hd::read_tally_dump()).await {
+        Ok(()) => {
+            let _ = log_tx.send(format!("tally dump requested host={host}"));
+            false
+        }
+        Err(e) if is_hard_disconnect(&e) => {
+            let _ = log_tx.send(format!("tally dump failed host={host}: {e}"));
+            true
+        }
+        Err(e) => {
+            let _ = log_tx.send(format!("tally dump write warning host={host}: {e}"));
+            false
+        }
     }
 }
 
