@@ -1,4 +1,5 @@
 mod actions;
+mod plugin_log;
 mod pool;
 mod settings;
 mod tally;
@@ -75,9 +76,12 @@ async fn main() {
     let (status_tx, mut status_rx) = mpsc::unbounded_channel();
     let (idle_tx, mut idle_rx) = mpsc::unbounded_channel();
     let (tally_tx, mut tally_rx) = mpsc::unbounded_channel();
+    let (log_tx, mut log_rx) = mpsc::unbounded_channel();
+
+    plugin_log::write_line(&format!("plugin start log={}", plugin_log::path_display()));
 
     let mut plugin = Plugin {
-        pool: Pool::new(status_tx, idle_tx, tally_tx),
+        pool: Pool::new(status_tx, idle_tx, tally_tx, log_tx),
         open_pi: HashMap::new(),
         watches: HashMap::new(),
         tally_states: HashMap::new(),
@@ -90,7 +94,9 @@ async fn main() {
             msg = socket.next() => {
                 match msg {
                     Some(Ok(message)) => plugin.handle(message),
-                    Some(Err(e)) => eprintln!("streamdeck read error: {e:?}"),
+                    Some(Err(e)) => {
+                        plugin.log(format!("streamdeck read error: {e:?}"));
+                    }
                     None => break,
                 }
             }
@@ -106,7 +112,10 @@ async fn main() {
                 } = out
                 {
                     if ok {
+                        plugin.log(format!("test ok host={host} {status}"));
                         plugin.commit_connection(&context, host, password);
+                    } else {
+                        plugin.log(format!("test failed host={host} {status}"));
                     }
                     plugin.open_pi.insert(context.clone(), action.clone());
                     let _ = plugin.outgoing.send(Outgoing::ToPi {
@@ -117,8 +126,12 @@ async fn main() {
                     continue;
                 }
                 if let Err(e) = send_out(&mut socket, out).await {
-                    eprintln!("streamdeck write error: {e:?}");
+                    plugin_log::write_line(&format!("streamdeck write error: {e:?}"));
                 }
+            }
+            log = log_rx.recv() => {
+                let Some(message) = log else { break };
+                plugin.log(message);
             }
             status = status_rx.recv() => {
                 let Some((key, status)) = status else { break };
@@ -181,6 +194,21 @@ async fn send_out(socket: &mut SdSocket, out: Outgoing) -> Result<(), String> {
 }
 
 impl Plugin {
+    fn log(&self, message: impl Into<String>) {
+        let message = message.into();
+        plugin_log::write_line(&message);
+        let _ = self.outgoing.send(Outgoing::Log {
+            message: format!("[v160hd] {message}"),
+        });
+        for (context, action) in &self.open_pi {
+            let _ = self.outgoing.send(Outgoing::ToPi {
+                action: action.clone(),
+                context: context.clone(),
+                payload: PiOut::logs_only(),
+            });
+        }
+    }
+
     fn handle(&mut self, message: Message<(), ActionSettings, PiMessage>) {
         match message {
             Message::WillAppear {
@@ -258,12 +286,20 @@ impl Plugin {
             self.push_status_value(&context, "Enter a host".to_string());
             return;
         }
+        self.log(format!(
+            "test_connection host={host} password_len={}",
+            password.len()
+        ));
         self.push_status_value(&context, "Testing…".to_string());
         let outgoing = self.outgoing.clone();
+        let log_host = host.clone();
         tokio::spawn(async move {
             let (ok, status) = match ver_probe(&host, &password).await {
                 Ok((product, version)) => (true, format!("Connected ({product} {version})")),
-                Err(e) => (false, format!("Failed ({e})")),
+                Err(e) => {
+                    plugin_log::write_line(&format!("ver_probe host={log_host} error={e}"));
+                    (false, format!("Failed ({e})"))
+                }
             };
             let _ = outgoing.send(Outgoing::Tested {
                 action,
@@ -304,6 +340,10 @@ impl Plugin {
     fn watch_key(&mut self, action: String, context: String, settings: ActionSettings) {
         let endpoint = EndpointKey::from_settings(&settings);
         if settings.should_connect() {
+            self.log(format!(
+                "pin host={}",
+                endpoint.as_ref().map(|k| k.host.as_str()).unwrap_or("")
+            ));
             self.pool.pin(&context, endpoint.clone());
         }
         self.watches.insert(
@@ -406,7 +446,7 @@ impl Plugin {
             Ok(Some(job)) => job,
             Ok(None) => return,
             Err(e) => {
-                let _ = self.outgoing.send(Outgoing::Log { message: e });
+                self.log(format!("action error {action}: {e}"));
                 if gesture == Gesture::Down {
                     let _ = self.outgoing.send(Outgoing::ShowAlert { context });
                 }
@@ -444,7 +484,10 @@ impl Plugin {
                     }
                 }
                 Ok(Err(e)) => {
-                    let _ = outgoing.send(Outgoing::Log { message: e });
+                    let _ = outgoing.send(Outgoing::Log {
+                        message: format!("[v160hd] command error: {e}"),
+                    });
+                    plugin_log::write_line(&format!("command error: {e}"));
                     if show_feedback {
                         let _ = outgoing.send(Outgoing::ShowAlert { context });
                     }
@@ -464,8 +507,16 @@ fn gesture_show_ok(gesture: Gesture) -> bool {
 }
 
 async fn ver_probe(host: &str, password: &str) -> Result<(String, String), String> {
+    plugin_log::write_line(&format!("ver_probe connect {host}"));
     let mut client = roland_rs::AsyncTelnetClient::connect_v160hd(host, password)
         .await
-        .map_err(|e| e.to_string())?;
-    client.get_version().await.map_err(|e| e.to_string())
+        .map_err(|e| {
+            plugin_log::write_line(&format!("ver_probe auth/connect failed: {e}"));
+            e.to_string()
+        })?;
+    plugin_log::write_line(&format!("ver_probe authenticated {host}, sending VER"));
+    client.get_version().await.map_err(|e| {
+        plugin_log::write_line(&format!("ver_probe VER failed: {e}"));
+        e.to_string()
+    })
 }

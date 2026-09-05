@@ -168,11 +168,16 @@ pub struct EndpointInfo {
 
 #[derive(Debug, Serialize)]
 pub struct PiOut {
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub status: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub endpoints: Vec<EndpointInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tested: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logs: Option<String>,
 }
 
 impl PiOut {
@@ -181,7 +186,10 @@ impl PiOut {
             status: status.into(),
             endpoints,
             tested: None,
+            log_path: None,
+            logs: None,
         }
+        .with_logs()
     }
 
     pub fn test_result(status: impl Into<String>, ok: bool) -> Self {
@@ -189,7 +197,30 @@ impl PiOut {
             status: status.into(),
             endpoints: Vec::new(),
             tested: Some(ok),
+            log_path: None,
+            logs: None,
         }
+        .with_logs()
+    }
+
+    pub fn logs_only() -> Self {
+        Self {
+            status: String::new(),
+            endpoints: Vec::new(),
+            tested: None,
+            log_path: None,
+            logs: None,
+        }
+        .with_logs()
+    }
+
+    fn with_logs(mut self) -> Self {
+        self.log_path = Some(crate::plugin_log::path_display());
+        let tail = crate::plugin_log::tail();
+        if !tail.is_empty() {
+            self.logs = Some(tail);
+        }
+        self
     }
 }
 
@@ -214,6 +245,7 @@ mod tests {
         assert_eq!(json["status"], "Connected");
         assert!(json.get("endpoints").is_none());
         assert!(json.get("tested").is_none());
+        assert!(json.get("log_path").is_some());
     }
 
     #[test]

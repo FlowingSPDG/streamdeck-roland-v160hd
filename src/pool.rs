@@ -83,6 +83,7 @@ pub struct Pool {
     status_tx: mpsc::UnboundedSender<(EndpointKey, ConnectionStatus)>,
     idle_tx: mpsc::UnboundedSender<(EndpointKey, u64)>,
     tally_tx: mpsc::UnboundedSender<(EndpointKey, Vec<(u8, TallyState)>)>,
+    log_tx: mpsc::UnboundedSender<String>,
 }
 
 impl Pool {
@@ -90,6 +91,7 @@ impl Pool {
         status_tx: mpsc::UnboundedSender<(EndpointKey, ConnectionStatus)>,
         idle_tx: mpsc::UnboundedSender<(EndpointKey, u64)>,
         tally_tx: mpsc::UnboundedSender<(EndpointKey, Vec<(u8, TallyState)>)>,
+        log_tx: mpsc::UnboundedSender<String>,
     ) -> Self {
         Self {
             visible: HashMap::new(),
@@ -98,6 +100,7 @@ impl Pool {
             status_tx,
             idle_tx,
             tally_tx,
+            log_tx,
         }
     }
 
@@ -169,8 +172,9 @@ impl Pool {
         let (tx, rx) = mpsc::unbounded_channel();
         let status_tx = self.status_tx.clone();
         let tally_tx = self.tally_tx.clone();
+        let log_tx = self.log_tx.clone();
         let task_key = key.clone();
-        tokio::spawn(run_endpoint(task_key, rx, status_tx, tally_tx));
+        tokio::spawn(run_endpoint(task_key, rx, status_tx, tally_tx, log_tx));
         self.endpoints.insert(
             key,
             Slot {
@@ -238,18 +242,24 @@ async fn run_endpoint(
     mut rx: mpsc::UnboundedReceiver<Work>,
     status_tx: mpsc::UnboundedSender<(EndpointKey, ConnectionStatus)>,
     tally_tx: mpsc::UnboundedSender<(EndpointKey, Vec<(u8, TallyState)>)>,
+    log_tx: mpsc::UnboundedSender<String>,
 ) {
     let mut client: Option<AsyncTelnetClient> = None;
     let mut backoff = Duration::from_secs(1);
+    let _ = log_tx.send(format!("pool start host={} port={}", key.host, key.port));
 
     loop {
         if client.is_none() {
             let _ = status_tx.send((key.clone(), ConnectionStatus::Connecting));
+            let _ = log_tx.send(format!("tcp connect {}:{}", key.host, key.port));
             match AsyncTelnetClient::connect_v160hd(&key.host, &key.password).await {
                 Ok(mut connected) => {
+                    let _ = log_tx.send(format!("authenticated host={}", key.host));
                     // Subscribe so the switcher pushes tally DTH on its own.
                     // recv() in the idle loop picks those up; no polling.
                     if let Err(e) = connected.send_command(&v160hd::subscribe_tally(true)).await {
+                        let _ =
+                            log_tx.send(format!("subscribe_tally failed host={}: {e}", key.host));
                         let status = ConnectionStatus::Retrying {
                             backoff_secs: backoff.as_secs().max(1),
                             error: e.to_string(),
@@ -263,9 +273,11 @@ async fn run_endpoint(
                     }
                     client = Some(connected);
                     backoff = Duration::from_secs(1);
+                    let _ = log_tx.send(format!("connected host={}", key.host));
                     let _ = status_tx.send((key.clone(), ConnectionStatus::Connected));
                 }
                 Err(e) => {
+                    let _ = log_tx.send(format!("connect failed host={}: {e}", key.host));
                     let status = ConnectionStatus::Retrying {
                         backoff_secs: backoff.as_secs().max(1),
                         error: e.to_string(),
@@ -293,14 +305,21 @@ async fn run_endpoint(
                                 let _ = tally_tx.send((key.clone(), updates));
                             }
                         }
-                        Err(_) => drop_client = true,
+                        Err(e) => {
+                            let _ = log_tx.send(format!("recv failed host={}: {e}", key.host));
+                            drop_client = true;
+                        }
                     }
                 }
                 work = rx.recv() => match work {
-                    None | Some(Work::Stop) => return,
+                    None | Some(Work::Stop) => {
+                        let _ = log_tx.send(format!("pool stop host={}", key.host));
+                        return;
+                    }
                     Some(Work::Exec { job, reply }) => {
                         let result = execute(c, job).await;
-                        if result.is_err() {
+                        if let Err(e) = &result {
+                            let _ = log_tx.send(format!("command failed host={}: {e}", key.host));
                             drop_client = true;
                         }
                         let _ = reply.send(result);
@@ -345,7 +364,7 @@ async fn execute(client: &mut AsyncTelnetClient, job: DeviceJob) -> Result<(), S
         DeviceJob::Write(command) => match client.send_command(&command).await {
             Ok(roland_rs::Response::Acknowledge) => Ok(()),
             Ok(roland_rs::Response::Error(e)) => Err(e.to_string()),
-            Ok(_) => Err("unexpected response".to_string()),
+            Ok(other) => Err(format!("unexpected response: {other:?}")),
             Err(e) => Err(e.to_string()),
         },
     }
