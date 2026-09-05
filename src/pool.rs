@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use roland_rs::devices::v160hd;
-use roland_rs::devices::v160hd::TallyState;
-use roland_rs::AsyncTelnetClient;
+use roland_rs::devices::v160hd::{TallySource, TallyState};
+use roland_rs::{AsyncTelnetClient, Command, Response};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::actions::DeviceJob;
@@ -294,10 +294,10 @@ async fn run_endpoint(
                             ));
                         }
                     }
-                    if request_tally_dump(&mut connected, &key.host, &log_tx).await {
+                    if request_tally_bytes(&mut connected, &key.host, &log_tx).await {
                         let status = ConnectionStatus::Retrying {
                             backoff_secs: backoff.as_secs().max(1),
-                            error: "tally dump write failed".to_string(),
+                            error: "tally poll write failed".to_string(),
                         };
                         let _ = status_tx.send((key.clone(), status.clone()));
                         if wait_backoff(&mut rx, backoff, &status).await {
@@ -338,6 +338,11 @@ async fn run_endpoint(
                 incoming = c.recv() => {
                     match incoming {
                         Ok(response) => {
+                            let _ = log_tx.send(format!(
+                                "recv host={} {}",
+                                key.host,
+                                format_response(&response)
+                            ));
                             if let Some(updates) = v160hd::tally_updates(&response) {
                                 last_tally = Some(Instant::now());
                                 let _ = log_tx.send(format!(
@@ -350,7 +355,9 @@ async fn run_endpoint(
                         }
                         Err(e) => {
                             let _ = log_tx.send(format!("recv failed host={}: {e}", key.host));
-                            drop_client = true;
+                            if is_hard_disconnect(&e) {
+                                drop_client = true;
+                            }
                         }
                     }
                 }
@@ -364,9 +371,11 @@ async fn run_endpoint(
                             let result = execute(c, job).await;
                             if let Err(e) = &result {
                                 let _ = log_tx.send(format!("command failed host={}: {e}", key.host));
-                                drop_client = true;
+                                if is_hard_disconnect(e) {
+                                    drop_client = true;
+                                }
                             }
-                            let _ = reply.send(result);
+                            let _ = reply.send(result.map_err(|e| e.to_string()));
                         }
                         Some(Work::Probe { reply }) => {
                             let _ = reply.send(Ok(()));
@@ -377,7 +386,7 @@ async fn run_endpoint(
                     let stale = last_tally
                         .map(|t| t.elapsed() >= TALLY_POLL)
                         .unwrap_or(true);
-                    if stale && request_tally_dump(c, &key.host, &log_tx).await {
+                    if stale && request_tally_bytes(c, &key.host, &log_tx).await {
                         drop_client = true;
                     }
                     next_tally_poll = tokio::time::Instant::now() + TALLY_POLL;
@@ -426,56 +435,73 @@ fn is_hard_disconnect(err: &roland_rs::TelnetError) -> bool {
     }
 }
 
-/// Returns true when the TCP session should be dropped.
-async fn request_tally_dump(
+fn format_response(response: &Response) -> String {
+    match response {
+        Response::Acknowledge => "ACK".to_string(),
+        Response::Data { address, value } => {
+            format!("DTH:{},{:02X}", address.to_hex(), value)
+        }
+        Response::DataBlock { address, bytes } => {
+            let hex: String = bytes.iter().map(|b| format!("{b:02X}")).collect();
+            format!("DTH:{},{hex} ({}B)", address.to_hex(), bytes.len())
+        }
+        Response::Version { product, version } => format!("VER:{product}:{version}"),
+        Response::Error(e) => format!("ERR:{e:?}"),
+    }
+}
+
+fn tally_byte_reads() -> Vec<Command> {
+    let mut commands = Vec::with_capacity(16);
+    for n in 1..=8 {
+        commands.push(v160hd::read_tally(TallySource::hdmi(n).expect("hdmi 1-8")));
+    }
+    for n in 1..=8 {
+        commands.push(v160hd::read_tally(TallySource::sdi(n).expect("sdi 1-8")));
+    }
+    commands
+}
+
+/// Official `RQH:0C00xx,000001;` for each HDMI/SDI connector.
+async fn request_tally_bytes(
     client: &mut AsyncTelnetClient,
     host: &str,
     log_tx: &mpsc::UnboundedSender<String>,
 ) -> bool {
-    match client.write_command(&v160hd::read_tally_dump()).await {
-        Ok(()) => {
-            let _ = log_tx.send(format!("tally dump requested host={host}"));
-            false
-        }
-        Err(e) if is_hard_disconnect(&e) => {
-            let _ = log_tx.send(format!("tally dump failed host={host}: {e}"));
-            true
-        }
-        Err(e) => {
-            let _ = log_tx.send(format!("tally dump write warning host={host}: {e}"));
-            false
+    for command in tally_byte_reads() {
+        match client.write_command(&command).await {
+            Ok(()) => {}
+            Err(e) if is_hard_disconnect(&e) => {
+                let _ = log_tx.send(format!("tally poll failed host={host}: {e}"));
+                return true;
+            }
+            Err(e) => {
+                let _ = log_tx.send(format!("tally poll write warning host={host}: {e}"));
+            }
         }
     }
+    let _ = log_tx.send(format!("tally poll requested host={host} count=16"));
+    false
 }
 
-async fn execute(client: &mut AsyncTelnetClient, job: DeviceJob) -> Result<(), String> {
+async fn execute(
+    client: &mut AsyncTelnetClient,
+    job: DeviceJob,
+) -> Result<(), roland_rs::TelnetError> {
     // Companion writes DTH fire-and-forget. Waiting 5s for ACK dropped the
     // only TCP session after every key press.
     match job {
         DeviceJob::Commands(commands) => {
             for command in &commands {
-                client
-                    .write_command(command)
-                    .await
-                    .map_err(|e| e.to_string())?;
+                client.write_command(command).await?;
             }
             Ok(())
         }
         DeviceJob::PressRelease(sw) => {
-            client
-                .write_command(&v160hd::press_switch(sw))
-                .await
-                .map_err(|e| e.to_string())?;
+            client.write_command(&v160hd::press_switch(sw)).await?;
             tokio::time::sleep(Duration::from_millis(200)).await;
-            client
-                .write_command(&v160hd::release_switch(sw))
-                .await
-                .map_err(|e| e.to_string())
+            client.write_command(&v160hd::release_switch(sw)).await
         }
-        DeviceJob::Write(command) => client
-            .write_command(&command)
-            .await
-            .map_err(|e| e.to_string()),
+        DeviceJob::Write(command) => client.write_command(&command).await,
     }
 }
 
@@ -521,5 +547,21 @@ mod tests {
         assert!(is_hard_disconnect(
             &roland_rs::TelnetError::ConnectionClosed
         ));
+    }
+
+    #[test]
+    fn tally_byte_reads_are_official_one_byte_rqh() {
+        let cmds = tally_byte_reads();
+        assert_eq!(cmds.len(), 16);
+        assert_eq!(cmds[0].encode(), "RQH:0C0000,000001;");
+        assert_eq!(cmds[7].encode(), "RQH:0C0007,000001;");
+        assert_eq!(cmds[8].encode(), "RQH:0C0008,000001;");
+        assert_eq!(cmds[15].encode(), "RQH:0C000F,000001;");
+    }
+
+    #[test]
+    fn format_response_shows_tally_dth() {
+        let response = Response::parse("DTH:0C0002,01;").unwrap();
+        assert_eq!(format_response(&response), "DTH:0C0002,01");
     }
 }

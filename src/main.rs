@@ -333,20 +333,20 @@ impl Plugin {
 
     fn watch_key(&mut self, action: String, context: String, settings: ActionSettings) {
         let endpoint = EndpointKey::from_settings(&settings);
+        let binding = TallyBinding::from_action(&action, &settings);
         if settings.should_connect() {
             plugin_log::write_line(&format!(
-                "pin host={}",
-                endpoint.as_ref().map(|k| k.host.as_str()).unwrap_or("")
+                "pin host={} source={} tally={:?} connector={:?} watch={}",
+                endpoint.as_ref().map(|k| k.host.as_str()).unwrap_or(""),
+                settings.source,
+                binding.check,
+                binding.source,
+                binding.watches_tally(),
             ));
             self.pool.pin(&context, endpoint.clone());
         }
-        self.watches.insert(
-            context.clone(),
-            KeyWatch {
-                endpoint,
-                binding: TallyBinding::from_action(&action, &settings),
-            },
-        );
+        self.watches
+            .insert(context.clone(), KeyWatch { endpoint, binding });
         self.refresh_tally_image(&context);
     }
 
