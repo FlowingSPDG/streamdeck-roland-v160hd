@@ -271,7 +271,7 @@ impl Plugin {
         }
     }
 
-    fn start_ver_test(&self, action: String, context: String, payload: PiMessage) {
+    fn start_ver_test(&mut self, action: String, context: String, payload: PiMessage) {
         let host = payload.host.unwrap_or_default();
         let host = host.trim().to_string();
         let password = payload.password.unwrap_or_else(|| "0000".to_string());
@@ -284,33 +284,13 @@ impl Plugin {
             password.len()
         ));
         self.push_status_value(&context, "Testing…".to_string());
+        // V-160HD allows one TCP client. Never open a second probe socket.
         let key = EndpointKey::new(&host, &password);
-        if let Some(tx) = self.pool.existing_sender(&key) {
-            self.log(format!("test_connection reuse pool host={host}"));
-            let outgoing = self.outgoing.clone();
-            tokio::spawn(async move {
-                let (ok, status) = pool_ver_probe(tx).await;
-                let _ = outgoing.send(Outgoing::Tested {
-                    action,
-                    context,
-                    host,
-                    password,
-                    ok,
-                    status,
-                });
-            });
-            return;
-        }
+        let tx = self.pool.sender(&key);
+        self.log(format!("test_connection via pool host={host}"));
         let outgoing = self.outgoing.clone();
-        let log_host = host.clone();
         tokio::spawn(async move {
-            let (ok, status) = match ver_probe(&host, &password).await {
-                Ok((product, version)) => (true, format!("Connected ({product} {version})")),
-                Err(e) => {
-                    plugin_log::write_line(&format!("ver_probe host={log_host} error={e}"));
-                    (false, format!("Failed ({e})"))
-                }
-            };
+            let (ok, status) = pool_probe(tx).await;
             let _ = outgoing.send(Outgoing::Tested {
                 action,
                 context,
@@ -516,32 +496,17 @@ fn gesture_show_ok(gesture: Gesture) -> bool {
     gesture == Gesture::Down
 }
 
-async fn pool_ver_probe(tx: mpsc::UnboundedSender<Work>) -> (bool, String) {
+async fn pool_probe(tx: mpsc::UnboundedSender<Work>) -> (bool, String) {
     let (reply_tx, reply_rx) = oneshot::channel();
-    if tx.send(Work::GetVersion { reply: reply_tx }).is_err() {
+    if tx.send(Work::Probe { reply: reply_tx }).is_err() {
         return (false, "Failed (not connected)".to_string());
     }
     match reply_rx.await {
-        Ok(Ok((product, version))) => (true, format!("Connected ({product} {version})")),
+        Ok(Ok(())) => (true, "Connected".to_string()),
         Ok(Err(e)) => {
-            plugin_log::write_line(&format!("pool_ver_probe error={e}"));
+            plugin_log::write_line(&format!("pool_probe error={e}"));
             (false, format!("Failed ({e})"))
         }
         Err(_) => (false, "Failed (not connected)".to_string()),
     }
-}
-
-async fn ver_probe(host: &str, password: &str) -> Result<(String, String), String> {
-    plugin_log::write_line(&format!("ver_probe connect {host}"));
-    let mut client = roland_rs::AsyncTelnetClient::connect_v160hd(host, password)
-        .await
-        .map_err(|e| {
-            plugin_log::write_line(&format!("ver_probe auth/connect failed: {e}"));
-            e.to_string()
-        })?;
-    plugin_log::write_line(&format!("ver_probe authenticated {host}, sending VER"));
-    client.get_version().await.map_err(|e| {
-        plugin_log::write_line(&format!("ver_probe VER failed: {e}"));
-        e.to_string()
-    })
 }

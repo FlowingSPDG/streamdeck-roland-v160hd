@@ -67,8 +67,10 @@ pub enum Work {
         job: DeviceJob,
         reply: oneshot::Sender<Result<(), String>>,
     },
-    GetVersion {
-        reply: oneshot::Sender<Result<(String, String), String>>,
+    /// Succeeds once this endpoint has an authenticated TCP session.
+    /// V-160HD accepts only one TCP client; Test must reuse this session.
+    Probe {
+        reply: oneshot::Sender<Result<(), String>>,
     },
     Stop,
 }
@@ -186,10 +188,6 @@ impl Pool {
                 generation: 0,
             },
         );
-    }
-
-    pub fn existing_sender(&self, key: &EndpointKey) -> Option<mpsc::UnboundedSender<Work>> {
-        self.endpoints.get(key).map(|slot| slot.tx.clone())
     }
 
     pub fn sender(&mut self, key: &EndpointKey) -> mpsc::UnboundedSender<Work> {
@@ -346,14 +344,8 @@ async fn run_endpoint(
                         }
                         let _ = reply.send(result);
                     }
-                    Some(Work::GetVersion { reply }) => {
-                        let result = c.get_version().await.map_err(|e| e.to_string());
-                        if let Err(e) = &result {
-                            let _ =
-                                log_tx.send(format!("get_version failed host={}: {e}", key.host));
-                            drop_client = true;
-                        }
-                        let _ = reply.send(result);
+                    Some(Work::Probe { reply }) => {
+                        let _ = reply.send(Ok(()));
                     }
                 }
             }
@@ -377,7 +369,7 @@ async fn wait_backoff(
                 Some(Work::Exec { reply, .. }) => {
                     let _ = reply.send(Err(status.label()));
                 }
-                Some(Work::GetVersion { reply }) => {
+                Some(Work::Probe { reply }) => {
                     let _ = reply.send(Err(status.label()));
                 }
             }
